@@ -22,7 +22,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "prebuild": "rimraf dist",
-    "build": "tsc -p . && rolldown -c rolldown.config.mjs"
+    "build": "tsc -p . && rolldown -c rolldown.config.mjs",
+    "dev": "tsc -p . --watch & rolldown -c rolldown.config.mjs --watch"
   },
   "devDependencies": {
     "@npmcli/arborist": "^7.1.0",

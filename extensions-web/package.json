@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "build": "tsc && vite build",
-    "dev": "tsc --watch",
+    "dev": "tsc --watch & vite build --watch",
     "test": "vitest",
     "typecheck": "tsc --noEmit"
   },

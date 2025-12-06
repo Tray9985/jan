@@ -70,6 +70,11 @@ dev-web-app: install-web-app
 	yarn build:core
 	yarn dev:web-app
 
+# Watch mode - rebuilds core, extensions-web, and web-app on every edit
+watch-web-app: install-web-app
+	yarn build:core
+	yarn watch:web-app
+
 build-web-app: install-web-app
 	yarn build:core
 	yarn build:web-app
