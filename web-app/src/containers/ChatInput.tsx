@@ -4,7 +4,7 @@ import TextareaAutosize from 'react-textarea-autosize'
 import { cn } from '@/lib/utils'
 import { usePrompt } from '@/hooks/usePrompt'
 import { useThreads } from '@/hooks/useThreads'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -85,32 +85,54 @@ type ChatInputProps = {
   projectId?: string
 }
 
-const ChatInput = ({
+const ChatInput = memo(function ChatInput({
   model,
   className,
   initialMessage,
   projectId,
-}: ChatInputProps) => {
+}: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isFocused, setIsFocused] = useState(false)
   const [rows, setRows] = useState(1)
   const serviceHub = useServiceHub()
-  const streamingContent = useAppState((state) => state.streamingContent)
-  const abortControllers = useAppState((state) => state.abortControllers)
-  const loadingModel = useAppState((state) => state.loadingModel)
-  const updateLoadingModel = useAppState((state) => state.updateLoadingModel)
-  const tools = useAppState((state) => state.tools)
-  const cancelToolCall = useAppState((state) => state.cancelToolCall)
-  const setActiveModels = useAppState((state) => state.setActiveModels)
-  const prompt = usePrompt((state) => state.prompt)
-  const setPrompt = usePrompt((state) => state.setPrompt)
+
+  // Combine useAppState selectors to reduce subscriptions
+  const {
+    streamingContent,
+    abortControllers,
+    loadingModel,
+    updateLoadingModel,
+    tools,
+    cancelToolCall,
+    setActiveModels,
+  } = useAppState(
+    useShallow((state) => ({
+      streamingContent: state.streamingContent,
+      abortControllers: state.abortControllers,
+      loadingModel: state.loadingModel,
+      updateLoadingModel: state.updateLoadingModel,
+      tools: state.tools,
+      cancelToolCall: state.cancelToolCall,
+      setActiveModels: state.setActiveModels,
+    }))
+  )
+
+  // Combine usePrompt selectors
+  const { prompt, setPrompt } = usePrompt(
+    useShallow((state) => ({
+      prompt: state.prompt,
+      setPrompt: state.setPrompt,
+    }))
+  )
+
   const currentThreadId = useThreads((state) => state.currentThreadId)
   const { t } = useTranslation()
-  const spellCheckChatInput = useGeneralSetting(
-    (state) => state.spellCheckChatInput
-  )
-  const tokenCounterCompact = useGeneralSetting(
-    (state) => state.tokenCounterCompact
+  // Combine useGeneralSetting selectors
+  const { spellCheckChatInput, tokenCounterCompact } = useGeneralSetting(
+    useShallow((state) => ({
+      spellCheckChatInput: state.spellCheckChatInput,
+      tokenCounterCompact: state.tokenCounterCompact,
+    }))
   )
   useTools()
 
@@ -124,8 +146,14 @@ const ChatInput = ({
   const maxRows = 10
   const ATTACHMENT_AUTO_INLINE_FALLBACK_BYTES = 512 * 1024
 
-  const selectedModel = useModelProvider((state) => state.selectedModel)
-  const selectedProvider = useModelProvider((state) => state.selectedProvider)
+  // Combine useModelProvider selectors
+  const { selectedModel, selectedProvider, getProviderByName } = useModelProvider(
+    useShallow((state) => ({
+      selectedModel: state.selectedModel,
+      selectedProvider: state.selectedProvider,
+      getProviderByName: state.getProviderByName,
+    }))
+  )
   const sendMessage = useChat()
   const [message, setMessage] = useState('')
   const [dropdownToolsAvailable, setDropdownToolsAvailable] = useState(false)
@@ -152,10 +180,20 @@ const ChatInput = ({
     setDialogOpen: setExtensionDialogOpen,
   } = useJanBrowserExtension()
 
-  const attachmentsEnabled = useAttachments((s) => s.enabled)
-  const parsePreference = useAttachments((s) => s.parseMode)
-  const maxFileSizeMB = useAttachments((s) => s.maxFileSizeMB)
-  const autoInlineContextRatio = useAttachments((s) => s.autoInlineContextRatio)
+  // Combine useAttachments selectors
+  const {
+    attachmentsEnabled,
+    parsePreference,
+    maxFileSizeMB,
+    autoInlineContextRatio,
+  } = useAttachments(
+    useShallow((s) => ({
+      attachmentsEnabled: s.enabled,
+      parsePreference: s.parseMode,
+      maxFileSizeMB: s.maxFileSizeMB,
+      autoInlineContextRatio: s.autoInlineContextRatio,
+    }))
+  )
   // Determine whether to show the Attach documents button (simple gating)
   const showAttachmentButton =
     attachmentsEnabled && PlatformFeatures[PlatformFeature.FILE_ATTACHMENTS]
@@ -165,16 +203,18 @@ const ChatInput = ({
     useCallback((state) => state.getAttachments(attachmentsKey), [attachmentsKey])
   )
   const attachmentsKeyRef = useRef(attachmentsKey)
-  const setAttachmentsForThread = useChatAttachments(
-    (state) => state.setAttachments
+  // Combine useChatAttachments action selectors
+  const {
+    setAttachmentsForThread,
+    clearAttachmentsForThread,
+    transferAttachments,
+  } = useChatAttachments(
+    useShallow((state) => ({
+      setAttachmentsForThread: state.setAttachments,
+      clearAttachmentsForThread: state.clearAttachments,
+      transferAttachments: state.transferAttachments,
+    }))
   )
-  const clearAttachmentsForThread = useChatAttachments(
-    (state) => state.clearAttachments
-  )
-  const transferAttachments = useChatAttachments(
-    (state) => state.transferAttachments
-  )
-  const getProviderByName = useModelProvider((state) => state.getProviderByName)
 
   useEffect(() => {
     attachmentsKeyRef.current = attachmentsKey
@@ -1627,6 +1667,6 @@ const ChatInput = ({
       />
     </div>
   )
-}
+})
 
 export default ChatInput
