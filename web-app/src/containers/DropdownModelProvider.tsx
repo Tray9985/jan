@@ -522,7 +522,7 @@ const DropdownModelProvider = ({
 
       <PopoverContent
         className={cn(
-          'w-60 p-0 backdrop-blur-2xl',
+          'w-fit min-w-[240px] max-w-[360px] p-0 backdrop-blur-2xl',
           searchValue.length === 0 && 'h-[320px]'
         )}
         align="start"
@@ -604,7 +604,7 @@ const DropdownModelProvider = ({
                                 provider={searchableModel.provider}
                               />
                             </div>
-                            <span className="text-main-view-fg/80 text-sm">
+                            <span className="text-main-view-fg/80 text-sm truncate">
                               {getModelDisplayName(searchableModel.model)}
                             </span>
                             <div className="flex-1"></div>
@@ -713,7 +713,7 @@ const DropdownModelProvider = ({
                             >
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <span
-                                  className="text-main-view-fg/80 text-sm"
+                                  className="text-main-view-fg/80 text-sm truncate"
                                   title={searchableModel.model.id}
                                 >
                                   {getModelDisplayName(searchableModel.model)}
