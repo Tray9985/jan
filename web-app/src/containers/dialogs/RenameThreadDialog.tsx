@@ -82,7 +82,7 @@ export function RenameThreadDialog({
   const handleRename = () => {
     if (title.trim()) {
       onRename(thread.id, title.trim())
-      setIsOpen(false)
+      setOpenSafe(false)
       onDropdownClose()
       toast.success(t('common:toast.renameThread.title'), {
         id: 'rename-thread',
