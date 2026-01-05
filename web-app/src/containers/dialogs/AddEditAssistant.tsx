@@ -253,8 +253,8 @@ export default function AddEditAssistant({
         </DialogHeader>
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <label className="text-sm mb-2 inline-block">
+            <div className="relative shrink-0">
+              <label className="text-sm mb-2 inline-block whitespace-nowrap">
                 {t('assistants:emoji')}
               </label>
               <div
