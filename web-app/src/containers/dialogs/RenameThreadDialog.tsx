@@ -25,6 +25,9 @@ interface RenameThreadDialogProps {
   plainTitleForRename: string
   onRename: (threadId: string, title: string) => void
   onDropdownClose: () => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  withoutTrigger?: boolean
 }
 
 export function RenameThreadDialog({
@@ -32,15 +35,27 @@ export function RenameThreadDialog({
   plainTitleForRename,
   onRename,
   onDropdownClose,
+  open,
+  onOpenChange,
+  withoutTrigger,
 }: RenameThreadDialogProps) {
   const { t } = useTranslation()
   const [title, setTitle] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const getMessages = useMessages((state) => state.getMessages)
   const { getProviderByName } = useModelProvider()
   const currentAssistant = useAssistant((state) => state.currentAssistant)
+  const isControlled = open !== undefined
+  const isOpen = isControlled ? !!open : internalOpen
+  const setOpenSafe = (next: boolean) => {
+    if (isControlled) {
+      onOpenChange?.(next)
+    } else {
+      setInternalOpen(next)
+    }
+  }
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -51,11 +66,15 @@ export function RenameThreadDialog({
     }
   }, [isOpen])
 
-  const handleOpenChange = (open: boolean) => {
-    setIsOpen(open)
-    if (open) {
+  useEffect(() => {
+    if (isOpen) {
       setTitle(plainTitleForRename || t('common:newThread'))
-    } else {
+    }
+  }, [isOpen, plainTitleForRename, t])
+
+  const handleOpenChange = (open: boolean) => {
+    setOpenSafe(open)
+    if (!open) {
       onDropdownClose()
     }
   }
@@ -176,12 +195,14 @@ export function RenameThreadDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-          <IconEdit />
-          <span>{t('common:rename')}</span>
-        </DropdownMenuItem>
-      </DialogTrigger>
+      {!withoutTrigger && (
+        <DialogTrigger asChild>
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            <IconEdit />
+            <span>{t('common:rename')}</span>
+          </DropdownMenuItem>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('common:threadTitle')}</DialogTitle>

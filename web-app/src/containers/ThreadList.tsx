@@ -16,6 +16,7 @@ import {
   IconDots,
   IconStarFilled,
   IconStar,
+  IconEdit,
   IconFolder,
   IconX,
   IconTrash,
@@ -83,6 +84,7 @@ const SortableItem = memo(
     const { t } = useTranslation()
     const [openDropdown, setOpenDropdown] = useState(false)
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+    const [renameDialogOpen, setRenameDialogOpen] = useState(false)
     const navigate = useNavigate()
     // Check if current route matches this thread's detail page
     const matches = useMatches()
@@ -244,12 +246,17 @@ const SortableItem = memo(
                   <span>{t('common:star')}</span>
                 </DropdownMenuItem>
               )}
-              <RenameThreadDialog
-                thread={thread}
-                plainTitleForRename={plainTitleForRename}
-                onRename={renameThread}
-                onDropdownClose={() => setOpenDropdown(false)}
-              />
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setRenameDialogOpen(true)
+                  setOpenDropdown(false)
+                }}
+              >
+                <IconEdit />
+                <span>{t('common:rename')}</span>
+              </DropdownMenuItem>
 
               {projectsEnabled && (
                 <DropdownMenuSub>
@@ -321,6 +328,15 @@ const SortableItem = memo(
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <RenameThreadDialog
+            thread={thread}
+            plainTitleForRename={plainTitleForRename}
+            onRename={renameThread}
+            onDropdownClose={() => setOpenDropdown(false)}
+            open={renameDialogOpen}
+            onOpenChange={setRenameDialogOpen}
+            withoutTrigger
+          />
           <DeleteThreadDialog
             thread={thread}
             onDelete={deleteThread}
