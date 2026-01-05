@@ -75,16 +75,14 @@ const ScrollToBottom = ({
     <div
       className={cn(
         'absolute z-0 -top-6 h-8 py-1 flex w-full justify-center pointer-events-none opacity-0 visibility-hidden',
-        appMainViewBgColor.a === 1
-          ? 'from-main-view/20 bg-gradient-to-b to-main-view backdrop-blur'
-          : 'bg-transparent',
+        'bg-transparent',
         (showScrollToBottomBtn || showGenerateAIResponseBtn) &&
           'visibility-visible opacity-100'
       )}
     >
       {showScrollToBottomBtn && (
         <div
-          className="bg-main-view-fg/10 px-2 border border-main-view-fg/5 flex items-center justify-center rounded-xl gap-x-2 cursor-pointer pointer-events-auto"
+          className="bg-main-view px-2 border border-main-view-fg/5 shadow-sm flex items-center justify-center rounded-xl gap-x-2 cursor-pointer pointer-events-auto"
           onClick={() => {
             scrollToBottom(true)
           }}
