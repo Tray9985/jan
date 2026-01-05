@@ -202,7 +202,15 @@ const processStreamingCompletion = async (
       }
 
       // Error message
+      const hasUsage = 'usage' in part && part.usage
+      if (hasUsage) {
+        tokenUsageRef.current = part.usage as CompletionUsage
+      }
+
       if (!part.choices) {
+        if (hasUsage) {
+          continue
+        }
         throw new Error(
           'message' in part
             ? (part.message as string)
@@ -860,9 +868,9 @@ export const useChat = () => {
           let tokenUsage: CompletionUsage | undefined = undefined
           const tokenUsageRef = { current: tokenUsage }
           try {
-            if (isCompletionResponse(completion)) {
-              const message = completion.choices[0]?.message
-              const newContent = (message?.content as string) || ''
+          if (isCompletionResponse(completion)) {
+            const message = completion.choices[0]?.message
+            const newContent = (message?.content as string) || ''
               if (
                 continueFromMessageId &&
                 accumulatedTextRef.value.length > 0
@@ -960,6 +968,7 @@ export const useChat = () => {
             accumulatedTextRef.value,
             {
               tokenSpeed: useAppState.getState().tokenSpeed,
+              usage: tokenUsage,
               assistant: currentAssistant,
               modelId: selectedModel?.id,
             }

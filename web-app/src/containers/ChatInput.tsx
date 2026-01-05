@@ -47,6 +47,7 @@ import { TokenCounter } from '@/components/TokenCounter'
 import { useMessages } from '@/hooks/useMessages'
 import { useShallow } from 'zustand/react/shallow'
 import { McpExtensionToolLoader } from './McpExtensionToolLoader'
+import ThreadUsageTotal from '@/containers/ThreadUsageTotal'
 import {
   ContentType,
   ExtensionTypeEnum,
@@ -1149,6 +1150,10 @@ const ChatInput = ({
             onDragOver={hasMmproj ? handleDragOver : undefined}
             onDrop={hasMmproj ? handleDrop : undefined}
           >
+            <ThreadUsageTotal
+              messages={threadMessages || []}
+              className="absolute top-2 right-2 z-30 pointer-events-none"
+            />
             {attachments.length > 0 && (
               <div className="flex flex-col gap-2 p-2 pb-0">
                 <div className="flex gap-3 items-center">

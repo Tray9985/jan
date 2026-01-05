@@ -29,6 +29,7 @@ import { formatDate } from '@/utils/formatDate'
 import { AvatarEmoji } from '@/containers/AvatarEmoji'
 
 import TokenSpeedIndicator from '@/containers/TokenSpeedIndicator'
+import MessageUsageIndicator from '@/containers/MessageUsageIndicator'
 
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useModelProvider } from '@/hooks/useModelProvider'
@@ -519,6 +520,7 @@ export const ThreadContent = memo(
                     )}
                     metadata={item.metadata}
                   />
+                  <MessageUsageIndicator metadata={item.metadata} />
                 </div>
               </div>
             )}

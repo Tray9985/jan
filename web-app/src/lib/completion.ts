@@ -272,6 +272,9 @@ export const sendCompletion = async (
           tool_choice: usableTools.length ? 'auto' : undefined,
           stream: true,
           ...params,
+          ...(provider.provider === 'openrouter' && {
+            usage: { include: true },
+          }),
         },
         abortController
       )
@@ -286,6 +289,9 @@ export const sendCompletion = async (
             tools: normalizeTools(usableTools),
             tool_choice: usableTools.length ? 'auto' : undefined,
             ...params,
+            ...(provider.provider === 'openrouter' && {
+              usage: { include: true },
+            }),
           },
           {
             signal: abortController.signal,
@@ -299,6 +305,9 @@ export const sendCompletion = async (
           tools: normalizeTools(usableTools),
           tool_choice: usableTools.length ? 'auto' : undefined,
           ...params,
+          ...(provider.provider === 'openrouter' && {
+            usage: { include: true },
+          }),
         })
   return completion
 }
