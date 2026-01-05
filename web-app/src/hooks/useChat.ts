@@ -824,6 +824,24 @@ export const useChat = () => {
                   .map(([key, value]) => [key, value.controller_props?.value])
               )
             : undefined
+          const baseParams = {
+            ...modelSettings,
+            ...(currentAssistant?.parameters || {}),
+          } as Record<string, unknown>
+          const supportsReasoning =
+            selectedModel?.capabilities?.includes('reasoning') ?? false
+          const reasoningEnabled = useAppState.getState().reasoningEnabled
+          let finalParams: Record<string, unknown> = baseParams
+
+          if (supportsReasoning) {
+            finalParams = {
+              ...baseParams,
+              reasoning: { enabled: reasoningEnabled },
+            }
+          } else if ('reasoning' in baseParams) {
+            const { reasoning, ...rest } = baseParams
+            finalParams = rest
+          }
 
           const completion = await sendCompletion(
             activeThread,
@@ -832,10 +850,7 @@ export const useChat = () => {
             abortController,
             availableTools,
             currentAssistant?.parameters?.stream === false ? false : true,
-            {
-              ...modelSettings,
-              ...(currentAssistant?.parameters || {}),
-            } as unknown as Record<string, object>
+            finalParams as unknown as Record<string, object>
           )
 
           if (!completion) throw new Error('No completion received')

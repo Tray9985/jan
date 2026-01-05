@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Jan",
+  "productName": "Jan Dev",
   "version": "0.6.599",
-  "identifier": "jan.ai.app",
+  "identifier": "jan.ai.app.dev",
   "build": {
     "frontendDist": "../web-app/dist",
     "devUrl": "http://localhost:1420",

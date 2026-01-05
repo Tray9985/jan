@@ -29,6 +29,7 @@ type AppState = {
   errorMessage?: AppErrorMessage
   promptProgress?: PromptProgress
   activeModels: string[]
+  reasoningEnabled: boolean
   cancelToolCall?: () => void
   setServerStatus: (value: 'running' | 'stopped' | 'pending') => void
   updateStreamingContent: (content: ThreadMessage | undefined) => void
@@ -51,6 +52,7 @@ type AppState = {
   setErrorMessage: (error: AppErrorMessage | undefined) => void
   updatePromptProgress: (progress: PromptProgress | undefined) => void
   setActiveModels: (models: string[]) => void
+  setReasoningEnabled: (enabled: boolean) => void
 }
 
 export const useAppState = create<AppState>()((set) => ({
@@ -64,6 +66,7 @@ export const useAppState = create<AppState>()((set) => ({
   promptProgress: undefined,
   cancelToolCall: undefined,
   activeModels: [],
+  reasoningEnabled: false,
   updateStreamingContent: (content: ThreadMessage | undefined) => {
     const assistants = useAssistant.getState().assistants
     const currentAssistant = useAssistant.getState().currentAssistant
@@ -181,6 +184,11 @@ export const useAppState = create<AppState>()((set) => ({
   setActiveModels: (models: string[]) => {
     set(() => ({
       activeModels: models,
+    }))
+  },
+  setReasoningEnabled: (enabled) => {
+    set(() => ({
+      reasoningEnabled: enabled,
     }))
   }
 }))

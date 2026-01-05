@@ -81,6 +81,7 @@ vi.mock('@tabler/icons-react', () => ({
   IconAlertTriangle: () => <div data-testid="alert-triangle-icon" />,
   IconEye: () => <div data-testid="eye-icon" />,
   IconTool: () => <div data-testid="tool-icon" />,
+  IconBulb: () => <div data-testid="bulb-icon" />,
   IconLoader2: () => <div data-testid="loader-icon" />,
   IconSparkles: () => <div data-testid="sparkles-icon" />,
 }))

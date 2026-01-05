@@ -42,6 +42,8 @@ let mockAppState = {
   updateTools: vi.fn(),
   activeModels: [] as string[],
   cancelToolCall: vi.fn(),
+  reasoningEnabled: false,
+  setReasoningEnabled: vi.fn(),
 }
 
 vi.mock('@/hooks/useAppState', () => ({
@@ -213,6 +215,7 @@ vi.mock('@tabler/icons-react', () => ({
   IconPhoto: () => <svg data-testid="photo-icon">Photo</svg>,
   IconWorld: () => <svg data-testid="world-icon">World</svg>,
   IconAtom: () => <svg data-testid="atom-icon">Atom</svg>,
+  IconBulb: () => <svg data-testid="bulb-icon">Bulb</svg>,
   IconTool: () => <svg data-testid="tool-icon">Tool</svg>,
   IconCodeCircle2: () => <svg data-testid="code-icon">Code</svg>,
   IconPaperclip: () => <svg data-testid="paperclip-icon">Paperclip</svg>,

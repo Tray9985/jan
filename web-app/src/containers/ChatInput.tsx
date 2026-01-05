@@ -21,7 +21,7 @@ import {
 import { ArrowRight, PlusIcon } from 'lucide-react'
 import {
   IconPhoto,
-  IconAtom,
+  IconBulb,
   IconTool,
   IconCodeCircle2,
   IconPlayerStopFilled,
@@ -102,6 +102,8 @@ const ChatInput = ({
   const tools = useAppState((state) => state.tools)
   const cancelToolCall = useAppState((state) => state.cancelToolCall)
   const setActiveModels = useAppState((state) => state.setActiveModels)
+  const reasoningEnabled = useAppState((state) => state.reasoningEnabled)
+  const setReasoningEnabled = useAppState((state) => state.setReasoningEnabled)
   const prompt = usePrompt((state) => state.prompt)
   const setPrompt = usePrompt((state) => state.setPrompt)
   const currentThreadId = useThreads((state) => state.currentThreadId)
@@ -1510,10 +1512,19 @@ const ChatInput = ({
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="h-7 p-1 flex items-center justify-center rounded-sm hover:bg-main-view-fg/10 transition-all duration-200 ease-in-out gap-1">
-                          <IconAtom
+                        <div
+                          className={cn(
+                            'h-7 p-1 flex items-center justify-center rounded-sm hover:bg-main-view-fg/10 transition-all duration-200 ease-in-out gap-1 cursor-pointer',
+                            reasoningEnabled && 'bg-accent/10'
+                          )}
+                          onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                        >
+                          <IconBulb
                             size={18}
-                            className="text-main-view-fg/50"
+                            className={cn(
+                              'text-main-view-fg/50',
+                              reasoningEnabled && 'text-accent'
+                            )}
                           />
                         </div>
                       </TooltipTrigger>
