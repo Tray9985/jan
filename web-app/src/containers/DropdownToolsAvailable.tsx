@@ -110,6 +110,16 @@ export default function DropdownToolsAvailable({
     return serverTools.every((tool) => isToolChecked(tool.server, tool.name))
   }
 
+  const areAllToolsEnabled = (): boolean => {
+    return tools.every((tool) => isToolChecked(tool.server, tool.name))
+  }
+
+  const handleToggleAllTools = (checked: boolean) => {
+    tools.forEach((tool) => {
+      handleToolToggle(tool.server, tool.name, checked)
+    })
+  }
+
   const getEnabledToolsCount = (): number => {
     const disabledToolKeys = initialMessage
       ? getDefaultDisabledTools()
@@ -163,8 +173,12 @@ export default function DropdownToolsAvailable({
         className="bg-main-view !overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <DropDrawerLabel className="flex items-center gap-2 sticky -top-1 z-10 px-4 pl-2 py-1">
-          Available Tools
+        <DropDrawerLabel className="flex items-center justify-between gap-2 sticky -top-1 z-10 px-4 pl-2 py-1">
+          <span>Available Tools</span>
+          <Switch
+            checked={areAllToolsEnabled()}
+            onCheckedChange={handleToggleAllTools}
+          />
         </DropDrawerLabel>
         <DropDrawerSeparator />
         <div className="max-h-64 overflow-y-auto">
