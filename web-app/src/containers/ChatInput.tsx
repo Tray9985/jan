@@ -1389,7 +1389,7 @@ const ChatInput = ({
                     </Tooltip>
                   </TooltipProvider>
                 )}
-                {selectedModel?.capabilities?.includes('tools') && hasJanBrowserMCPConfig && (
+                {selectedModel?.capabilities?.includes('tools') && hasJanBrowserMCPConfig && janBrowserMCPActive && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
