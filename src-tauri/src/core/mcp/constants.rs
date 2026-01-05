@@ -55,6 +55,12 @@ pub const DEFAULT_MCP_CONFIG: &str = r#"{
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
       "env": {},
       "active": false
+    },
+    "jina-mcp-tools": {
+      "command": "npx",
+      "args": ["-y", "jina-mcp-tools"],
+      "env": { "JINA_API_KEY": "your_jina_api_key_here" },
+      "active": false
     }
   },
   "mcpSettings": {
