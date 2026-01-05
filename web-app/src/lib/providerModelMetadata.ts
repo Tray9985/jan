@@ -3,7 +3,6 @@ import { modelSettings } from '@/lib/predefined'
 type ProviderModelMetadata = {
   capabilities: string[]
   contextLength?: number
-  maxTokens?: number
   displayName?: string
 }
 
@@ -78,35 +77,12 @@ const buildCtxLenSetting = (contextLength?: number): ProviderSetting | undefined
   }
 }
 
-const buildMaxTokensSetting = (maxTokens?: number): ProviderSetting | undefined => {
-  if (!maxTokens || !Number.isFinite(maxTokens) || maxTokens <= 0) {
-    return undefined
-  }
-  return {
-    key: 'max_tokens',
-    title: 'Max Tokens',
-    description: 'Maximum number of tokens to generate.',
-    controller_type: 'input',
-    controller_props: {
-      value: Math.floor(maxTokens),
-      placeholder: String(Math.floor(maxTokens)),
-      type: 'number',
-      min: 1,
-      step: 1,
-    },
-  }
-}
-
 export const buildModelSettingsFromMetadata = (
   metadata?: ProviderModelMetadata
 ): Record<string, ProviderSetting> | undefined => {
   const ctxSetting = buildCtxLenSetting(metadata?.contextLength)
-  const maxTokensSetting = buildMaxTokensSetting(metadata?.maxTokens)
-  if (!ctxSetting && !maxTokensSetting) return undefined
-  return {
-    ...(ctxSetting ? { ctx_len: ctxSetting } : {}),
-    ...(maxTokensSetting ? { max_tokens: maxTokensSetting } : {}),
-  }
+  if (!ctxSetting) return undefined
+  return { ctx_len: ctxSetting }
 }
 
 const parseOpenRouterCapabilities = (model: OpenRouterModel): string[] => {
@@ -132,12 +108,6 @@ const parseOpenRouterCapabilities = (model: OpenRouterModel): string[] => {
 const parseOpenRouterMetadata = (model: OpenRouterModel): ProviderModelMetadata => {
   const contextLength =
     typeof model.context_length === 'number' ? model.context_length : undefined
-  const maxTokens =
-    typeof model.max_completion_tokens === 'number'
-      ? model.max_completion_tokens
-      : typeof model.top_provider?.max_completion_tokens === 'number'
-        ? model.top_provider.max_completion_tokens
-        : contextLength
   const displayName =
     typeof model.name === 'string' && model.name.trim()
       ? model.name.trim()
@@ -146,7 +116,6 @@ const parseOpenRouterMetadata = (model: OpenRouterModel): ProviderModelMetadata 
   return {
     capabilities: parseOpenRouterCapabilities(model),
     contextLength,
-    maxTokens,
     displayName,
   }
 }
