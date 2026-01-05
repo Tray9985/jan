@@ -256,6 +256,38 @@
   "extensions": {
     "title": "扩展"
   },
+  "attachments": {
+    "subtitle": "配置文档附件、大小限制和检索行为。",
+    "featureTitle": "功能",
+    "enable": "启用附件",
+    "enableDesc": "允许上传并索引文档以用于检索。",
+    "parseMode": "解析偏好",
+    "parseModeDesc": "选择解析后的文档如何加入对话。",
+    "parseModeAuto": "自动",
+    "parseModeInline": "加入聊天",
+    "parseModeEmbeddings": "作为嵌入写入",
+    "parseModePrompt": "每次询问",
+    "autoInlineThreshold": "自动内联阈值",
+    "autoInlineThresholdDesc": "本地模型中，将解析文件内联的上下文占比阈值。",
+    "limitsTitle": "限制",
+    "maxFile": "最大文件大小（MB）",
+    "maxFileDesc": "单个文件允许的最大大小。上传与处理时强制执行。",
+    "retrievalTitle": "检索",
+    "topK": "Top-K",
+    "topKDesc": "最多返回的引用数量。",
+    "threshold": "相似度阈值",
+    "thresholdDesc": "最小相似度分数（0-1）。仅用于线性余弦检索，不用于 ANN。",
+    "searchMode": "向量检索模式",
+    "searchModeDesc": "在 sqlite-vec ANN、线性余弦或自动之间选择。",
+    "searchModeAuto": "自动（推荐）",
+    "searchModeAnn": "ANN（sqlite-vec）",
+    "searchModeLinear": "线性",
+    "chunkingTitle": "分块",
+    "chunkSize": "分块大小（字符）",
+    "chunkSizeDesc": "用于嵌入的每块最大字符数（约）。",
+    "chunkOverlap": "重叠（字符）",
+    "chunkOverlapDesc": "相邻分块的字符重叠量。"
+  },
   "dialogs": {
     "changeDataFolder": {
       "title": "更改数据文件夹位置",
