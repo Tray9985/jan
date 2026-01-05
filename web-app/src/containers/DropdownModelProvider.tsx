@@ -7,6 +7,11 @@ import {
 } from '@/components/ui/popover'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { cn, getProviderTitle, getModelDisplayName } from '@/lib/utils'
+import {
+  getContextLabelClasses,
+  formatContextLengthLabel,
+  getModelContextLength,
+} from '@/lib/providerModelMetadata'
 import { highlightFzfMatch } from '@/utils/highlight'
 import Capabilities from './Capabilities'
 import { IconSettings, IconX } from '@tabler/icons-react'
@@ -457,6 +462,12 @@ const DropdownModelProvider = ({
   if (!providers.length) return null
 
   const provider = getProviderByName(selectedProvider)
+  const currentModelContextLength = getModelContextLength(currentModel)
+  const currentModelContextLabel = formatContextLengthLabel(
+    currentModelContextLength
+  )
+  const currentModelContextClasses =
+    getContextLabelClasses(currentModelContextLength)
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -479,6 +490,16 @@ const DropdownModelProvider = ({
             >
               {displayModel}
             </span>
+            {currentModelContextLabel && (
+              <span
+                className={cn(
+                  'text-[10px] font-medium px-1.5 py-0.5 rounded',
+                  currentModelContextClasses
+                )}
+              >
+                {currentModelContextLabel}
+              </span>
+            )}
           </button>
         </PopoverTrigger>
         {currentModel?.settings &&
@@ -555,6 +576,14 @@ const DropdownModelProvider = ({
                         selectedProvider === searchableModel.provider.provider
                       const capabilities =
                         searchableModel.model.capabilities || []
+                      const contextLength = getModelContextLength(
+                        searchableModel.model
+                      )
+                      const contextLabel = formatContextLengthLabel(
+                        contextLength
+                      )
+                      const contextLabelClasses =
+                        getContextLabelClasses(contextLength)
 
                       return (
                         <div
@@ -578,6 +607,16 @@ const DropdownModelProvider = ({
                               {getModelDisplayName(searchableModel.model)}
                             </span>
                             <div className="flex-1"></div>
+                            {contextLabel && (
+                              <span
+                                className={cn(
+                                  'text-[10px] font-medium px-1.5 py-0.5 rounded',
+                                  contextLabelClasses
+                                )}
+                              >
+                                {contextLabel}
+                              </span>
+                            )}
                             {capabilities.length > 0 && (
                               <div className="flex-shrink-0 -mr-1.5">
                                 <Capabilities capabilities={capabilities} />
@@ -650,6 +689,14 @@ const DropdownModelProvider = ({
                               searchableModel.provider.provider
                           const capabilities =
                             searchableModel.model.capabilities || []
+                          const contextLength = getModelContextLength(
+                            searchableModel.model
+                          )
+                          const contextLabel = formatContextLengthLabel(
+                            contextLength
+                          )
+                          const contextLabelClasses =
+                            getContextLabelClasses(contextLength)
 
                           return (
                             <div
@@ -671,6 +718,16 @@ const DropdownModelProvider = ({
                                   {getModelDisplayName(searchableModel.model)}
                                 </span>
                                 <div className="flex-1"></div>
+                                {contextLabel && (
+                                  <span
+                                    className={cn(
+                                      'text-[10px] font-medium px-1.5 py-0.5 rounded',
+                                      contextLabelClasses
+                                    )}
+                                  >
+                                    {contextLabel}
+                                  </span>
+                                )}
                                 {capabilities.length > 0 && (
                                   <div className="flex-shrink-0 -mr-1.5">
                                     <Capabilities capabilities={capabilities} />

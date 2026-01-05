@@ -38,6 +38,13 @@ import { PlatformFeatures } from '@/lib/platform/const'
 import { PlatformFeature } from '@/lib/platform/types'
 import { useBackendUpdater } from '@/hooks/useBackendUpdater'
 import { basenameNoExt } from '@/lib/utils'
+import {
+  buildModelSettingsFromMetadata,
+  getContextLabelClasses,
+  formatContextLengthLabel,
+  getModelContextLength,
+  getProviderModelsMetadataMap,
+} from '@/lib/providerModelMetadata'
 import { useAppState } from '@/hooks/useAppState'
 import { useShallow } from 'zustand/shallow'
 
@@ -211,18 +218,24 @@ function ProviderDetail() {
 
     setRefreshingModels(true)
     try {
+      const metadataMap = await getProviderModelsMetadataMap(provider)
       const modelIds = await serviceHub
         .providers()
         .fetchModelsFromProvider(provider)
 
       // Create new models from the fetched IDs
-      const newModels: Model[] = modelIds.map((id) => ({
-        id,
-        model: id,
-        name: id,
-        capabilities: ['completion'], // Default capability
-        version: '1.0',
-      }))
+      const newModels: Model[] = modelIds.map((id) => {
+        const metadata = metadataMap.get(id)
+        const settings = buildModelSettingsFromMetadata(metadata)
+        return {
+          id,
+          model: id,
+          name: id,
+          capabilities: metadata?.capabilities ?? ['completion'],
+          version: '1.0',
+          ...(settings ? { settings } : {}),
+        }
+      })
 
       // Filter out models that already exist
       const existingModelIds = provider.models.map((m) => m.id)
@@ -700,6 +713,12 @@ function ProviderDetail() {
                   {provider?.models.length ? (
                     provider?.models.map((model, modelIndex) => {
                       const capabilities = model.capabilities || []
+                      const contextLength = getModelContextLength(model)
+                      const contextLabel = formatContextLengthLabel(
+                        contextLength
+                      )
+                      const contextLabelClasses =
+                        getContextLabelClasses(contextLength)
                       return (
                         <CardItem
                           key={modelIndex}
@@ -711,6 +730,16 @@ function ProviderDetail() {
                               >
                                 {getModelDisplayName(model)}
                               </h1>
+                              {contextLabel && (
+                                <span
+                                  className={cn(
+                                    'text-[10px] font-medium px-1.5 py-0.5 rounded',
+                                    contextLabelClasses
+                                  )}
+                                >
+                                  {contextLabel}
+                                </span>
+                              )}
                               <Capabilities capabilities={capabilities} />
                             </div>
                           }

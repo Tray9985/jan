@@ -16,6 +16,10 @@ import { useState } from 'react'
 import { getProviderTitle } from '@/lib/utils'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { getModelCapabilities } from '@/lib/models'
+import {
+  buildModelSettingsFromMetadata,
+  getProviderModelMetadata,
+} from '@/lib/providerModelMetadata'
 import { toast } from 'sonner'
 
 type DialogAddModelProps = {
@@ -36,7 +40,7 @@ export const DialogAddModel = ({ provider, trigger }: DialogAddModelProps) => {
   )
 
   // Handle form submission
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!modelId.trim()) return // Don't submit if model ID is empty
 
     if (provider.models.some((e) => e.id === modelId)) {
@@ -46,13 +50,19 @@ export const DialogAddModel = ({ provider, trigger }: DialogAddModelProps) => {
       return // Don't submit if model ID already exists
     }
 
+    const metadata = await getProviderModelMetadata(provider, modelId)
+    const settings = buildModelSettingsFromMetadata(metadata)
+    const capabilities =
+      metadata?.capabilities ?? getModelCapabilities(provider.provider, modelId)
+
     // Create the new model
     const newModel = {
       id: modelId,
       model: modelId,
       name: modelId,
-      capabilities: getModelCapabilities(provider.provider, modelId),
+      capabilities,
       version: '1.0',
+      ...(settings ? { settings } : {}),
     }
 
     // Update the provider with the new model
