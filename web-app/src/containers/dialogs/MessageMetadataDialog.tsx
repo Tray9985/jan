@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogHeader,
 } from '@/components/ui/dialog'
-import { IconInfoCircle } from '@tabler/icons-react'
+import { IconCopy, IconCopyCheck, IconInfoCircle } from '@tabler/icons-react'
 import {
   Tooltip,
   TooltipContent,
@@ -29,7 +29,9 @@ export function MessageMetadataDialog({
 }: MessageMetadataDialogProps) {
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
-  const { codeBlockStyle, showLineNumbers } = useCodeblock()
+  const [isCopied, setIsCopied] = useState(false)
+  const { codeBlockStyle } = useCodeblock()
+  const metadataText = JSON.stringify(metadata || {}, null, 2)
   const syntaxStyle =
     prismStyles[
       codeBlockStyle
@@ -39,6 +41,14 @@ export function MessageMetadataDialog({
         )
         .join('') as keyof typeof prismStyles
     ] || prismStyles.oneLight
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(metadataText)
+    setIsCopied(true)
+    setTimeout(() => {
+      setIsCopied(false)
+    }, 2000)
+  }
 
   const defaultTrigger = (
     <Tooltip>
@@ -74,7 +84,7 @@ export function MessageMetadataDialog({
               <SyntaxHighlighter
                 language="json"
                 style={syntaxStyle}
-                showLineNumbers={showLineNumbers}
+                showLineNumbers={false}
                 wrapLines={true}
                 lineProps={{
                   style: {
@@ -87,15 +97,33 @@ export function MessageMetadataDialog({
                   margin: 0,
                   padding: '12px',
                   borderRadius: '6px',
-                  background: 'transparent',
                   maxHeight: '60vh',
                   overflow: 'auto',
                 }}
                 PreTag="div"
                 CodeTag="code"
               >
-                {JSON.stringify(metadata || {}, null, 2)}
+                {metadataText}
               </SyntaxHighlighter>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="flex items-center gap-1 text-xs font-sans transition-colors text-main-view-fg/70 hover:text-main-view-fg"
+              >
+                {isCopied ? (
+                  <>
+                    <IconCopyCheck size={16} className="text-accent" />
+                    <span>{t('common:copied')}</span>
+                  </>
+                ) : (
+                  <>
+                    <IconCopy size={16} />
+                    <span>{t('common:copy')}</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </DialogHeader>
