@@ -21,6 +21,7 @@ export const generateThreadTitle = async ({
   assistantMessage,
   baseParams,
   supportsReasoning,
+  conversationText,
 }: {
   thread: Thread
   provider: ModelProvider
@@ -28,17 +29,29 @@ export const generateThreadTitle = async ({
   assistantMessage: string
   baseParams: Record<string, unknown>
   supportsReasoning: boolean
+  conversationText?: string
 }): Promise<string | undefined> => {
-  const titleMessages: ChatCompletionMessageParam[] = [
-    {
-      role: 'system',
-      content: THREAD_TITLE_PROMPT,
-    },
-    {
-      role: 'user',
-      content: `用户：${userMessage}\n助手：${assistantMessage}`,
-    },
-  ]
+  const titleMessages: ChatCompletionMessageParam[] = conversationText
+    ? [
+        {
+          role: 'system',
+          content: THREAD_TITLE_PROMPT,
+        },
+        {
+          role: 'user',
+          content: conversationText,
+        },
+      ]
+    : [
+        {
+          role: 'system',
+          content: THREAD_TITLE_PROMPT,
+        },
+        {
+          role: 'user',
+          content: `用户：${userMessage}\n助手：${assistantMessage}`,
+        },
+      ]
   let titleParams: Record<string, unknown> = {
     ...baseParams,
     stream: false,
