@@ -1,6 +1,7 @@
 {
   "editServer": "编辑 MCP 服务器",
   "addServer": "添加 MCP 服务器",
+  "addByJson": "通过 JSON 添加服务器",
   "browserExtension": {
     "connecting": {
       "checking": "正在检查扩展状态..."
@@ -13,15 +14,26 @@
   },
   "serverName": "服务器名称",
   "enterServerName": "输入服务器名称",
+  "url": "URL",
+  "enterUrl": "输入 URL",
   "command": "命令",
   "enterCommand": "输入命令 (uvx 或 npx)",
   "arguments": "参数",
   "argument": "参数 {{index}}",
   "envVars": "环境变量",
+  "headers": "请求头",
+  "headerName": "Header 名称",
+  "headerValue": "Header 值",
+  "timeout": "超时（秒）",
+  "enterTimeout": "输入超时（秒）",
   "key": "键",
   "value": "值",
   "save": "保存",
   "status": "状态",
+  "official": "官方",
+  "transport": "传输方式",
+  "requiresBrowserExtension": "需要在基于 Chrome 的浏览器中安装 Jan Browser 扩展。",
+  "installExtension": "安装扩展 →",
   "connected": "已连接",
   "disconnected": "已断开",
   "deleteServer": {

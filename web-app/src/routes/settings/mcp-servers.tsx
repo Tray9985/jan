@@ -509,7 +509,7 @@ function MCPServersDesktop() {
                               alt="Jan"
                               className="w-3 h-3 object-contain"
                             />
-                            <span>Official</span>
+                            <span>{t('mcp-servers:official')}</span>
                           </div>
                         )}
                       </div>
@@ -517,7 +517,7 @@ function MCPServersDesktop() {
                     descriptionOutside={
                       <div className="text-sm text-main-view-fg/70">
                         <div className="mb-1">
-                          Transport:{' '}
+                          {t('mcp-servers:transport')}:{' '}
                           <span className="uppercase">
                             {config.type || 'stdio'}
                           </span>
@@ -547,8 +547,7 @@ function MCPServersDesktop() {
                             {config.official && (
                               <div className="mt-2 text-xs text-main-view-fg/60 border-t border-main-view-fg/10 pt-2">
                                 <p className="mb-1">
-                                  Requires Jan Browser Extension to be installed
-                                  in your Chrome-based browser.
+                                  {t('mcp-servers:requiresBrowserExtension')}
                                 </p>
                                 <a
                                   href="https://chromewebstore.google.com/detail/jan-browser-mcp/mkciifcjehgnpaigoiaakdgabbpfppal"
@@ -556,7 +555,7 @@ function MCPServersDesktop() {
                                   rel="noopener noreferrer"
                                   className="text-blue-500 hover:underline"
                                 >
-                                  Install Extension →
+                                  {t('mcp-servers:installExtension')}
                                 </a>
                               </div>
                             )}

@@ -174,7 +174,7 @@ export default function DropdownToolsAvailable({
         onClick={(e) => e.stopPropagation()}
       >
         <DropDrawerLabel className="flex items-center justify-between gap-2 sticky -top-1 z-10 px-4 pl-2 py-1">
-          <span>Available Tools</span>
+          <span>{t('common:availableTools')}</span>
           <Switch
             checked={areAllToolsEnabled()}
             onCheckedChange={handleToggleAllTools}
@@ -207,7 +207,7 @@ export default function DropdownToolsAvailable({
                     {serverTools.length > 1 && (
                       <div className="sticky top-0 z-10 bg-main-view border-b border-main-view-fg/10 px-4 md:px-2 pr-2 py-1.5 flex items-center justify-between">
                         <span className="text-xs font-medium text-main-view-fg/70">
-                          All Tools
+                          {t('common:allTools')}
                         </span>
                         <div
                           className={cn(

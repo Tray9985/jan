@@ -1,6 +1,7 @@
 {
   "editServer": "Edit MCP Server",
   "addServer": "Add MCP Server",
+  "addByJson": "Add server by JSON",
   "browserExtension": {
     "connecting": {
       "checking": "Checking extension status..."
@@ -13,15 +14,26 @@
   },
   "serverName": "Server Name",
   "enterServerName": "Enter server name",
+  "url": "URL",
+  "enterUrl": "Enter URL",
   "command": "Command",
   "enterCommand": "Enter command (uvx or npx)",
   "arguments": "Arguments",
   "argument": "Argument {{index}}",
   "envVars": "Environment Variables",
+  "headers": "Headers",
+  "headerName": "Header name",
+  "headerValue": "Header value",
+  "timeout": "Timeout (seconds)",
+  "enterTimeout": "Enter timeout in seconds",
   "key": "Key",
   "value": "Value",
   "save": "Save",
   "status": "Status",
+  "official": "Official",
+  "transport": "Transport",
+  "requiresBrowserExtension": "Requires Jan Browser Extension to be installed in your Chrome-based browser.",
+  "installExtension": "Install Extension →",
   "connected": "Connected",
   "disconnected": "Disconnected",
   "deleteServer": {

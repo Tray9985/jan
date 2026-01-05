@@ -18,6 +18,7 @@ import {
   IconCheck,
   IconAlertTriangle,
 } from '@tabler/icons-react'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 type ImportVisionModelDialogProps = {
   provider: ModelProvider
@@ -30,6 +31,7 @@ export const ImportVisionModelDialog = ({
   trigger,
   onSuccess,
 }: ImportVisionModelDialogProps) => {
+  const { t } = useTranslation()
   const serviceHub = useServiceHub()
   const [open, setOpen] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -70,8 +72,7 @@ export const ImportVisionModelDialog = ({
 
               // Model files should NOT be clip
               if (architecture === 'clip') {
-                const errorMessage =
-                  'This model has CLIP architecture and cannot be imported as a text generation model. CLIP models are designed for vision tasks and require different handling.'
+                const errorMessage = t('providers:clipModelImportError')
                 setValidationError(errorMessage)
                 console.error(
                   'CLIP architecture detected in model file:',
@@ -81,7 +82,9 @@ export const ImportVisionModelDialog = ({
             }
 
             if (!result.isValid) {
-              setValidationError(result.error || 'Model validation failed')
+              setValidationError(
+                result.error || t('providers:modelValidationFailed')
+              )
               console.error('Model validation failed:', result.error)
             }
           }
@@ -105,7 +108,9 @@ export const ImportVisionModelDialog = ({
 
             // MMProj files MUST be clip
             if (architecture !== 'clip') {
-              const errorMessage = `This MMProj file has "${architecture}" architecture but should have "clip" architecture. MMProj files must be CLIP models for vision processing.`
+              const errorMessage = t('providers:mmprojArchitectureError', {
+                architecture,
+              })
               setMmprojValidationError(errorMessage)
               console.error(
                 'Non-CLIP architecture detected in mmproj file:',
@@ -117,17 +122,25 @@ export const ImportVisionModelDialog = ({
               'Failed to validate mmproj file directly:',
               directError
             )
-            const errorMessage = `Failed to read MMProj metadata: ${
-              directError instanceof Error
-                ? directError.message
-                : 'Unknown error'
-            }`
+            const errorMessage = t('providers:mmprojMetadataReadError', {
+              error:
+                directError instanceof Error
+                  ? directError.message
+                  : t('common:unknownError'),
+            })
             setMmprojValidationError(errorMessage)
           }
         }
       } catch (error) {
         console.error(`Failed to validate ${fileType} file:`, error)
-        const errorMessage = `Failed to read ${fileType} metadata: ${error instanceof Error ? error.message : 'Unknown error'}`
+        const errorMessage = t('providers:metadataReadError', {
+          fileType:
+            fileType === 'model'
+              ? t('providers:model')
+              : t('providers:mmproj'),
+          error:
+            error instanceof Error ? error.message : t('common:unknownError'),
+        })
 
         if (fileType === 'model') {
           setValidationError(errorMessage)
@@ -142,7 +155,7 @@ export const ImportVisionModelDialog = ({
         }
       }
     },
-    [modelName, serviceHub]
+    [modelName, serviceHub, t]
   )
 
   const validateModelFile = useCallback(
@@ -189,17 +202,17 @@ export const ImportVisionModelDialog = ({
 
   const handleImport = async () => {
     if (!modelFile) {
-      toast.error('Please select a model file')
+      toast.error(t('providers:selectModelFileError'))
       return
     }
 
     if (isVisionModel && !mmProjFile) {
-      toast.error('Please select both model and MMPROJ files for vision models')
+      toast.error(t('providers:selectMmprojFileError'))
       return
     }
 
     if (!modelName) {
-      toast.error('Unable to determine model name from file')
+      toast.error(t('providers:modelNameMissing'))
       return
     }
 
@@ -209,8 +222,8 @@ export const ImportVisionModelDialog = ({
     )
 
     if (modelExists) {
-      toast.error('Model already exists', {
-        description: `${modelName} already imported`,
+      toast.error(t('providers:modelAlreadyExists'), {
+        description: t('providers:modelAlreadyExistsDesc', { modelName }),
       })
       return
     }
@@ -233,8 +246,8 @@ export const ImportVisionModelDialog = ({
         await serviceHub.models().pullModel(modelName, modelFile)
       }
 
-      toast.success('Model imported successfully', {
-        description: `${modelName} has been imported`,
+      toast.success(t('providers:modelImported'), {
+        description: t('providers:modelImportedDesc', { modelName }),
       })
 
       // Reset form and close dialog
@@ -243,9 +256,9 @@ export const ImportVisionModelDialog = ({
       onSuccess?.(modelName)
     } catch (error) {
       console.error('Import model error:', error)
-      toast.error('Failed to import model', {
+      toast.error(t('providers:modelImportFailed'), {
         description:
-          error instanceof Error ? error.message : 'Unknown error occurred',
+          error instanceof Error ? error.message : t('common:unknownError'),
       })
     } finally {
       setImporting(false)
@@ -289,11 +302,10 @@ export const ImportVisionModelDialog = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Import Model
+            {t('providers:importModel')}
           </DialogTitle>
           <DialogDescription>
-            Import a GGUF model file to add it to your collection. Enable vision
-            support for models that work with images.
+            {t('providers:importModelDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -306,11 +318,10 @@ export const ImportVisionModelDialog = ({
               </div>
               <div className="flex-1">
                 <h3 className="font-medium text-main-view-fg">
-                  Vision Model Support
+                  {t('providers:visionSupportTitle')}
                 </h3>
                 <p className="text-sm text-main-view-fg/70">
-                  Enable if your model supports image understanding (requires
-                  MMPROJ file)
+                  {t('providers:visionSupportDesc')}
                 </p>
               </div>
               <Switch
@@ -334,7 +345,7 @@ export const ImportVisionModelDialog = ({
             <div className="bg-main-view-fg/5 rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-main-view-fg/80">
-                  Model will be saved as:
+                  {t('providers:modelSavedAs')}
                 </span>
               </div>
               <p className="text-base font-mono mt-1 text-main-view-fg">
@@ -349,10 +360,10 @@ export const ImportVisionModelDialog = ({
             <div className="border border-main-view-fg/10 rounded-lg p-4 space-y-3 bg-main-view-fg/5">
               <div className="flex items-center gap-2">
                 <h3 className="font-medium text-main-view-fg">
-                  Model File (GGUF)
+                  {t('providers:modelFile')}
                 </h3>
                 <span className="text-xs bg-main-view-fg/10 text-main-view-fg/70 px-2 py-1 rounded">
-                  Required
+                  {t('common:required')}
                 </span>
               </div>
 
@@ -385,7 +396,7 @@ export const ImportVisionModelDialog = ({
                         disabled={importing || isValidating}
                         className="text-accent hover:text-accent/80"
                       >
-                        Change
+                        {t('common:change')}
                       </Button>
                     </div>
                   </div>
@@ -400,7 +411,7 @@ export const ImportVisionModelDialog = ({
                         />
                         <div>
                           <p className="text-sm font-medium text-destructive">
-                            Model Validation Error
+                            {t('providers:modelValidationErrorTitle')}
                           </p>
                           <p className="text-sm text-destructive/90 mt-1">
                             {validationError}
@@ -419,7 +430,7 @@ export const ImportVisionModelDialog = ({
                           className="text-blue-500 animate-spin"
                         />
                         <p className="text-sm text-blue-700">
-                          Validating model file...
+                          {t('providers:validatingModelFile')}
                         </p>
                       </div>
                     </div>
@@ -433,7 +444,7 @@ export const ImportVisionModelDialog = ({
                   disabled={importing}
                   className="w-full h-12 border border-dashed border-main-view-fg/10 bg-main-view text-main-view-fg/50 hover:text-main-view-fg"
                 >
-                  Select GGUF File
+                  {t('providers:selectGgufFile')}
                 </Button>
               )}
             </div>
@@ -442,9 +453,11 @@ export const ImportVisionModelDialog = ({
             {isVisionModel && (
               <div className="border border-main-view-fg/10 rounded-lg p-4 space-y-3 bg-main-view-fg/5">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-main-view-fg">MMPROJ File</h3>
+                  <h3 className="font-medium text-main-view-fg">
+                    {t('providers:mmprojFile')}
+                  </h3>
                   <span className="text-xs bg-accent/10 text-accent px-2 py-1 rounded">
-                    Required for Vision
+                    {t('providers:requiredForVision')}
                   </span>
                 </div>
 
@@ -477,7 +490,7 @@ export const ImportVisionModelDialog = ({
                           disabled={importing || isValidatingMmproj}
                           className="text-accent hover:text-accent/80"
                         >
-                          Change
+                          {t('common:change')}
                         </Button>
                       </div>
                     </div>
@@ -492,7 +505,7 @@ export const ImportVisionModelDialog = ({
                           />
                           <div>
                             <p className="text-sm font-medium text-destructive">
-                              MMProj Validation Error
+                              {t('providers:mmprojValidationErrorTitle')}
                             </p>
                             <p className="text-sm text-destructive/90 mt-1">
                               {mmprojValidationError}
@@ -511,7 +524,7 @@ export const ImportVisionModelDialog = ({
                             className="text-blue-500 animate-spin"
                           />
                           <p className="text-sm text-blue-700">
-                            Validating MMProj file...
+                            {t('providers:validatingMmprojFile')}
                           </p>
                         </div>
                       </div>
@@ -525,7 +538,7 @@ export const ImportVisionModelDialog = ({
                     disabled={importing}
                     className="w-full h-12 border border-dashed border-main-view-fg/10 bg-main-view text-main-view-fg/50 hover:text-main-view-fg"
                   >
-                    Select MMPROJ File
+                    {t('providers:selectMmprojFile')}
                   </Button>
                 )}
               </div>
@@ -540,7 +553,7 @@ export const ImportVisionModelDialog = ({
             disabled={importing}
             className="flex-1"
           >
-            Cancel
+            {t('common:cancel')}
           </Button>
           <Button
             onClick={handleImport}
@@ -558,9 +571,11 @@ export const ImportVisionModelDialog = ({
           >
             {importing && <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />}
             {importing ? (
-              'Importing...'
+              t('providers:importing')
             ) : (
-              <>Import {isVisionModel ? 'Vision ' : ''}Model</>
+              isVisionModel
+                ? t('providers:importVisionModelAction')
+                : t('providers:importModelAction')
             )}
           </Button>
         </DialogFooter>

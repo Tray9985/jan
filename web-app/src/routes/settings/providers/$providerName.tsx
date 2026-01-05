@@ -437,7 +437,7 @@ function ProviderDetail() {
                           setting.key === 'version_backend' ? (
                           <div className="flex items-center gap-1 text-sm text-main-view-fg/70">
                             <IconLoader size={16} className="animate-spin" />
-                            <span>loading</span>
+                            <span>{t('common:loading')}</span>
                           </div>
                         ) : (
                           <DynamicControllerSetting
@@ -570,7 +570,9 @@ function ProviderDetail() {
                                       .pop() ||
                                       setting.controller_props.recommended}
                                   </span>
-                                  <span> is the recommended backend.</span>
+                                  <span>
+                                    {t('providers:recommendedBackendSuffix')}
+                                  </span>
                                 </div>
                               )}
                             {setting.key === 'version_backend' &&
@@ -623,8 +625,8 @@ function ProviderDetail() {
                                       />
                                       <span>
                                         {isInstallingBackend
-                                          ? 'Installing Backend...'
-                                          : 'Install Backend from File'}
+                                          ? t('providers:installingBackend')
+                                          : t('providers:installBackendFromFile')}
                                       </span>
                                     </div>
                                   </Button>
@@ -835,7 +837,7 @@ function ProviderDetail() {
                                 size={16}
                                 className="animate-spin text-accent"
                               />
-                              Importing...
+                              {t('providers:importing')}
                             </div>
                             <h1 className="font-medium line-clamp-1">
                               {importingModel}
