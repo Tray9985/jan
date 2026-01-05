@@ -27,6 +27,8 @@ export const MessageUsageIndicator = memo(
       return { hasUsage, promptTokens, completionTokens }
     }, [metadata])
 
+    if (!hasUsage) return null
+
     return (
       <span
         className={cn(
@@ -34,21 +36,15 @@ export const MessageUsageIndicator = memo(
           className
         )}
       >
-        {hasUsage ? (
-          <>
-            <span className="flex items-center gap-0.5">
-              <IconArrowUp className="size-3" />
-              <span>{promptTokens}</span>
-            </span>
-            <span className="text-main-view-fg/30">·</span>
-            <span className="flex items-center gap-0.5">
-              <IconArrowDown className="size-3" />
-              <span>{completionTokens}</span>
-            </span>
-          </>
-        ) : (
-          '--'
-        )}
+        <span className="flex items-center gap-0.5">
+          <IconArrowUp className="size-3" />
+          <span>{promptTokens}</span>
+        </span>
+        <span className="text-main-view-fg/30">·</span>
+        <span className="flex items-center gap-0.5">
+          <IconArrowDown className="size-3" />
+          <span>{completionTokens}</span>
+        </span>
       </span>
     )
   }
