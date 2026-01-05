@@ -110,6 +110,10 @@ pub fn get_configuration_file_path<R: Runtime>(app_handle: tauri::AppHandle<R>) 
         PathBuf::from(home_dir)
     });
 
+    if cfg!(debug_assertions) {
+        return app_path.join(CONFIGURATION_FILE_NAME);
+    }
+
     let package_name = env!("CARGO_PKG_NAME");
     #[cfg(target_os = "linux")]
     let old_data_dir = {
