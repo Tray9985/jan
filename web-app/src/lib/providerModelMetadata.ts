@@ -4,6 +4,7 @@ type ProviderModelMetadata = {
   capabilities: string[]
   contextLength?: number
   maxTokens?: number
+  displayName?: string
 }
 
 type OpenRouterModel = {
@@ -137,11 +138,16 @@ const parseOpenRouterMetadata = (model: OpenRouterModel): ProviderModelMetadata 
       : typeof model.top_provider?.max_completion_tokens === 'number'
         ? model.top_provider.max_completion_tokens
         : contextLength
+  const displayName =
+    typeof model.name === 'string' && model.name.trim()
+      ? model.name.trim()
+      : undefined
 
   return {
     capabilities: parseOpenRouterCapabilities(model),
     contextLength,
     maxTokens,
+    displayName,
   }
 }
 

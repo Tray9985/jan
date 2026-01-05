@@ -476,6 +476,7 @@ const DropdownModelProvider = ({
           <button
             type="button"
             className="font-medium cursor-pointer flex items-center gap-1.5 relative z-20"
+            title={selectedModel?.id}
           >
             {provider && (
               <div className="shrink-0">

@@ -54,6 +54,7 @@ export const DialogAddModel = ({ provider, trigger }: DialogAddModelProps) => {
     const settings = buildModelSettingsFromMetadata(metadata)
     const capabilities =
       metadata?.capabilities ?? getModelCapabilities(provider.provider, modelId)
+    const displayName = metadata?.displayName
 
     // Create the new model
     const newModel = {
@@ -62,6 +63,7 @@ export const DialogAddModel = ({ provider, trigger }: DialogAddModelProps) => {
       name: modelId,
       capabilities,
       version: '1.0',
+      ...(displayName ? { displayName } : {}),
       ...(settings ? { settings } : {}),
     }
 

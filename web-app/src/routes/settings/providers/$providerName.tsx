@@ -233,6 +233,7 @@ function ProviderDetail() {
           name: id,
           capabilities: metadata?.capabilities ?? ['completion'],
           version: '1.0',
+          ...(metadata?.displayName ? { displayName: metadata.displayName } : {}),
           ...(settings ? { settings } : {}),
         }
       })
@@ -723,10 +724,9 @@ function ProviderDetail() {
                         <CardItem
                           key={modelIndex}
                           title={
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2" title={model.id}>
                               <h1
                                 className="font-medium line-clamp-1"
-                                title={model.id}
                               >
                                 {getModelDisplayName(model)}
                               </h1>
