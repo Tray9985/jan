@@ -39,6 +39,7 @@ import {
   ReasoningProcessor,
   extractReasoningFromMessage,
 } from '@/utils/reasoning'
+import { generateThreadTitle } from '@/lib/threadTitle'
 import { useAssistant } from './useAssistant'
 import { useShallow } from 'zustand/shallow'
 import { TEMPORARY_CHAT_QUERY_ID, TEMPORARY_CHAT_ID } from '@/constants/chat'
@@ -288,11 +289,12 @@ export const useChat = () => {
 
   const getProviderByName = useModelProvider((state) => state.getProviderByName)
 
-  const [createThread, retrieveThread, updateThreadTimestamp] = useThreads(
+  const [createThread, retrieveThread, updateThreadTimestamp, renameThread] = useThreads(
     useShallow((state) => [
       state.createThread,
       state.getCurrentThread,
       state.updateThreadTimestamp,
+      state.renameThread,
     ])
   )
 
@@ -1010,8 +1012,9 @@ export const useChat = () => {
             allowAllMCPPermissions,
             isProactiveModeForPostProcessing
           )
+          const finalizedMessage = updatedMessage ?? finalContent
           finalizeMessage(
-            updatedMessage ?? finalContent,
+            finalizedMessage,
             addMessage,
             updateStreamingContent,
             updatePromptProgress,
@@ -1021,6 +1024,25 @@ export const useChat = () => {
           )
 
           isCompleted = !toolCalls.length
+
+          if (
+            isCompleted &&
+            !continueFromMessageId &&
+            messages.length === 0 &&
+            activeProvider
+          ) {
+            const title = await generateThreadTitle({
+              thread: activeThread,
+              provider: activeProvider,
+              userMessage: message.trim(),
+              assistantMessage: finalizedMessage.content?.[0]?.text?.value || '',
+              baseParams,
+              supportsReasoning,
+            })
+            if (title) {
+              renameThread(activeThread.id, title)
+            }
+          }
           // // Do not create agent loop if there is no need for it
           // // Check if assistant loop steps are within limits
           // if (assistantLoopSteps >= (currentAssistant?.tool_steps ?? 20)) {
@@ -1157,6 +1179,7 @@ export const useChat = () => {
       addMessage,
       updateMessage,
       updateThreadTimestamp,
+      renameThread,
       updateLoadingModel,
       getDisabledToolsForThread,
       allowAllMCPPermissions,
