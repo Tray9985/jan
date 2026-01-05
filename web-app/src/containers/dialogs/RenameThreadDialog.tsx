@@ -125,15 +125,15 @@ export function RenameThreadDialog({
     const providerName = thread.model?.provider
     const modelId = thread.model?.id
     if (!providerName || !modelId) {
-      toast.error('Failed to generate title', {
-        description: 'Missing model information for this thread.',
+      toast.error(t('common:toast.autoRenameFailed.title'), {
+        description: t('common:toast.autoRenameFailed.missingModel'),
       })
       return
     }
     const provider = getProviderByName(providerName)
     if (!provider) {
-      toast.error('Failed to generate title', {
-        description: 'Model provider is not available.',
+      toast.error(t('common:toast.autoRenameFailed.title'), {
+        description: t('common:toast.autoRenameFailed.missingProvider'),
       })
       return
     }
@@ -141,8 +141,8 @@ export function RenameThreadDialog({
     const messages = getMessages(thread.id)
     const conversationText = buildConversationText(messages)
     if (!conversationText) {
-      toast.error('Failed to generate title', {
-        description: 'No messages found for this thread.',
+      toast.error(t('common:toast.autoRenameFailed.title'), {
+        description: t('common:toast.autoRenameFailed.noMessages'),
       })
       return
     }
@@ -183,10 +183,14 @@ export function RenameThreadDialog({
       if (generatedTitle) {
         setTitle(generatedTitle)
       } else {
-        toast.error('Failed to generate title')
+        toast.error(t('common:toast.autoRenameFailed.title'), {
+          description: t('common:toast.autoRenameFailed.generic'),
+        })
       }
     } catch (error) {
-      toast.error('Failed to generate title')
+      toast.error(t('common:toast.autoRenameFailed.title'), {
+        description: t('common:toast.autoRenameFailed.generic'),
+      })
       throw error
     } finally {
       setIsGeneratingTitle(false)

@@ -157,7 +157,11 @@ const SortableItem = memo(
           },
         })
 
-        toast.success(`Thread assigned to "${project.name}" successfully`)
+        toast.success(t('common:toast.threadAssignedToProject.title'), {
+          description: t('common:toast.threadAssignedToProject.description', {
+            projectName: project.name,
+          }),
+        })
       }
     }
 
@@ -304,13 +308,18 @@ const SortableItem = memo(
                           project: undefined,
                         },
                       })
-                      toast.success(
-                        `Thread removed from "${projectName}" successfully`
-                      )
+                      toast.success(t('common:toast.threadRemovedFromProject.title'), {
+                        description: t(
+                          'common:toast.threadRemovedFromProject.description',
+                          {
+                            projectName,
+                          }
+                        ),
+                      })
                     }}
                   >
                     <IconX size={16} />
-                    <span>Remove from project</span>
+                    <span>{t('projects.removeFromProject')}</span>
                   </DropdownMenuItem>
                 </>
               )}

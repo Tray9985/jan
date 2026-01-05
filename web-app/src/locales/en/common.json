@@ -319,6 +319,13 @@
       "title": "Delete Thread",
       "description": "This thread has been permanently deleted."
     },
+    "autoRenameFailed": {
+      "title": "Auto Rename Failed",
+      "missingModel": "Missing model information for this thread.",
+      "missingProvider": "Model provider is not available.",
+      "noMessages": "No messages found for this thread.",
+      "generic": "Failed to generate title. Please try again."
+    },
     "editMessage": {
       "title": "Edit Message",
       "description": "Message edited successfully. Please wait for the model to respond."
