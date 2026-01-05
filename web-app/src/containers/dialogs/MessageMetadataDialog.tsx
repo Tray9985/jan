@@ -13,8 +13,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import CodeEditor from '@uiw/react-textarea-code-editor'
-import '@uiw/react-textarea-code-editor/dist.css'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import * as prismStyles from 'react-syntax-highlighter/dist/cjs/styles/prism'
+import { useCodeblock } from '@/hooks/useCodeblock'
 
 interface MessageMetadataDialogProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,6 +29,16 @@ export function MessageMetadataDialog({
 }: MessageMetadataDialogProps) {
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
+  const { codeBlockStyle, showLineNumbers } = useCodeblock()
+  const syntaxStyle =
+    prismStyles[
+      codeBlockStyle
+        .split('-')
+        .map((part: string, index: number) =>
+          index === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)
+        )
+        .join('') as keyof typeof prismStyles
+    ] || prismStyles.oneLight
 
   const defaultTrigger = (
     <Tooltip>
@@ -60,18 +71,31 @@ export function MessageMetadataDialog({
           <DialogTitle>{t('common:dialogs.messageMetadata.title')}</DialogTitle>
           <div className="space-y-2 mt-4">
             <div className="border border-main-view-fg/10 rounded-md">
-              <CodeEditor
-                value={JSON.stringify(metadata || {}, null, 2)}
+              <SyntaxHighlighter
                 language="json"
-                readOnly
-                data-color-mode="dark"
-                style={{
-                  fontSize: 12,
-                  backgroundColor: 'transparent',
-                  fontFamily: 'monospace',
+                style={syntaxStyle}
+                showLineNumbers={showLineNumbers}
+                wrapLines={true}
+                lineProps={{
+                  style: {
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'anywhere',
+                  },
                 }}
-                className="w-full h-full !text-sm "
-              />
+                customStyle={{
+                  margin: 0,
+                  padding: '12px',
+                  borderRadius: '6px',
+                  background: 'transparent',
+                  maxHeight: '60vh',
+                  overflow: 'auto',
+                }}
+                PreTag="div"
+                CodeTag="code"
+              >
+                {JSON.stringify(metadata || {}, null, 2)}
+              </SyntaxHighlighter>
             </div>
           </div>
         </DialogHeader>
