@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { IconEdit, IconLoader2, IconSparkles } from '@tabler/icons-react'
+import { ThreadMessage } from '@janhq/core'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { useMessages } from '@/hooks/useMessages'

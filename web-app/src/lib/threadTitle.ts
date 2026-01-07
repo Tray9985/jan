@@ -1,6 +1,8 @@
-import { ChatCompletionMessageParam } from 'openai/resources'
+import {
+  ChatCompletionContentPartText,
+  ChatCompletionMessageParam,
+} from 'openai/resources'
 import { isCompletionResponse, sendCompletion } from '@/lib/completion'
-import { ModelProvider } from '@janhq/core'
 
 const THREAD_TITLE_PROMPT = `通过聊天记录创建一个具体且简洁的标题，用于概括对话主题。标题为中文，其中关键字可为原始语言。
 
@@ -80,7 +82,16 @@ export const generateThreadTitle = async ({
   if (!titleCompletion || !isCompletionResponse(titleCompletion)) {
     throw new Error('Failed to generate thread title')
   }
-  const rawTitle = titleCompletion.choices?.[0]?.message?.content || ''
-  const cleanedTitle = rawTitle.trim()
+  const rawTitle = titleCompletion.choices?.[0]?.message?.content
+  const normalizedTitle = Array.isArray(rawTitle)
+    ? rawTitle
+        .map((part) =>
+          part?.type === 'text'
+            ? (part as ChatCompletionContentPartText).text
+            : ''
+        )
+        .join('')
+    : rawTitle ?? ''
+  const cleanedTitle = normalizedTitle.trim()
   return cleanedTitle || undefined
 }
