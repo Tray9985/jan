@@ -25,7 +25,7 @@
     "build:web-app": "yarn build:extensions-web && yarn workspace @janhq/web-app install && yarn workspace @janhq/web-app build:web",
     "serve:web-app": "yarn workspace @janhq/web-app serve:web",
     "build:serve:web-app": "yarn build:web-app && yarn serve:web-app",
-    "dev:tauri": "yarn build:icon && yarn copy:assets:tauri && cross-env IS_CLEAN=true tauri dev",
+    "dev:tauri": "yarn build:icon && yarn copy:assets:tauri && cross-env APP_NAME=\"Jan Dev Debug\" IS_CLEAN=true tauri dev --config src-tauri/tauri.debug.conf.json",
     "dev:ios": "yarn copy:assets:mobile && RUSTC_WRAPPER= cross-env IS_IOS=true yarn tauri ios dev --features mobile",
     "dev:android": "yarn copy:assets:mobile && cross-env IS_ANDROID=true yarn tauri android dev --features mobile",
     "build:android": "yarn build:icon && yarn copy:assets:mobile && cross-env IS_CLEAN=true yarn tauri android build -- --no-default-features --features mobile",
