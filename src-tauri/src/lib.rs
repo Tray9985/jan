@@ -205,6 +205,31 @@ pub fn run() {
         .expect("error while running tauri application");
     // Handle app lifecycle events
     app.run(|app, event| {
+        #[cfg(target_os = "macos")]
+        if let RunEvent::WindowEvent { label, event, .. } = &event {
+            if label == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.hide();
+                    }
+                    return;
+                }
+            }
+        }
+        #[cfg(target_os = "macos")]
+        if let RunEvent::Reopen {
+            has_visible_windows,
+            ..
+        } = &event
+        {
+            if !has_visible_windows {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        }
         if let RunEvent::Exit = event {
             let app_handle = app.clone();
 
