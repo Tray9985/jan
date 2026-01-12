@@ -45,7 +45,10 @@ function ProjectPageContent() {
   // Get threads for this project
   const projectThreads = useMemo(() => {
     return Object.values(threads)
-      .filter((thread) => thread.metadata?.project?.id === projectId)
+      .filter(
+        (thread) =>
+          thread.metadata?.project?.id === projectId && !thread.archived
+      )
       .sort((a, b) => (b.updated || 0) - (a.updated || 0))
   }, [threads, projectId])
 

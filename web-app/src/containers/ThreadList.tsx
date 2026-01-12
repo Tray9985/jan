@@ -17,6 +17,8 @@ import {
   IconStarFilled,
   IconStar,
   IconEdit,
+  IconArchive,
+  IconArchiveOff,
   IconFolder,
   IconX,
   IconTrash,
@@ -260,6 +262,17 @@ const SortableItem = memo(
               >
                 <IconEdit />
                 <span>{t('common:rename')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  updateThread(thread.id, { archived: !thread.archived })
+                }}
+              >
+                {thread.archived ? <IconArchiveOff /> : <IconArchive />}
+                <span>
+                  {t(thread.archived ? 'common:unarchive' : 'common:archive')}
+                </span>
               </DropdownMenuItem>
 
               {projectsEnabled && (

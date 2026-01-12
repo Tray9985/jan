@@ -7,6 +7,7 @@ import {
   IconCirclePlus,
   IconSettings,
   IconStar,
+  IconArchive,
   IconFolderPlus,
   IconMessage,
   IconApps,
@@ -61,6 +62,12 @@ const mainMenus = [
 ]
 
 const secondaryMenus = [
+  {
+    title: 'common:archive',
+    icon: IconArchive,
+    route: route.archive,
+    isEnabled: true,
+  },
   {
     title: 'common:hub',
     icon: IconApps,

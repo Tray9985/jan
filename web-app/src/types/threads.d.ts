@@ -40,6 +40,7 @@ type Thread = {
   id: string
   title: string
   isFavorite?: boolean
+  archived?: boolean
 
   model?: ThreadModel
   updated: number
