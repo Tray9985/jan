@@ -266,7 +266,16 @@ const SortableItem = memo(
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation()
-                  updateThread(thread.id, { archived: !thread.archived })
+                  const nextArchived = !thread.archived
+                  const updates: Partial<Thread> = {
+                    archived: nextArchived,
+                  }
+                  if (nextArchived) {
+                    updates.metadata = thread.metadata
+                      ? { ...thread.metadata, project: undefined }
+                      : { project: undefined }
+                  }
+                  updateThread(thread.id, updates)
                 }}
               >
                 {thread.archived ? <IconArchiveOff /> : <IconArchive />}
