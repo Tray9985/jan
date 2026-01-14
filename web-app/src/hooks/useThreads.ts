@@ -337,7 +337,6 @@ export const useThreads = create<ThreadState>()((set, get) => ({
       const updatedThread = {
         ...thread,
         title: newTitle,
-        updated: Date.now() / 1000,
       }
       getServiceHub().threads().updateThread(updatedThread) // External call, order is fine
       const newThreads = { ...state.threads, [threadId]: updatedThread }

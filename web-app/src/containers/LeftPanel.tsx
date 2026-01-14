@@ -16,6 +16,8 @@ import {
   IconFolder,
   IconPencil,
   IconTrash,
+  IconChevronDown,
+  IconChevronRight,
 } from '@tabler/icons-react'
 import { route } from '@/constants/routes'
 import ThreadList from './ThreadList'
@@ -199,6 +201,70 @@ const LeftPanel = () => {
   const unFavoritedThreads = useMemo(() => {
     return filteredThreads.filter((t) => !t.isFavorite && !t.metadata?.project)
   }, [filteredThreads])
+
+  const [collapsedGroups, setCollapsedGroups] = useState<
+    Record<string, boolean>
+  >({})
+
+  const threadGroups = useMemo(() => {
+    const now = new Date()
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    )
+    const startOfYesterday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - 1
+    )
+    const startOfSevenDays = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - 7
+    )
+    const startOfThirtyDays = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - 30
+    )
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+
+    const groups: Record<string, Thread[]> = {
+      today: [],
+      yesterday: [],
+      last7Days: [],
+      last30Days: [],
+      thisYear: [],
+      older: [],
+    }
+
+    unFavoritedThreads.forEach((thread) => {
+      const updated = new Date((thread.updated || 0) * 1000)
+      if (updated >= startOfToday) {
+        groups.today.push(thread)
+      } else if (updated >= startOfYesterday) {
+        groups.yesterday.push(thread)
+      } else if (updated >= startOfSevenDays) {
+        groups.last7Days.push(thread)
+      } else if (updated >= startOfThirtyDays) {
+        groups.last30Days.push(thread)
+      } else if (updated >= startOfYear) {
+        groups.thisYear.push(thread)
+      } else {
+        groups.older.push(thread)
+      }
+    })
+
+    return groups
+  }, [unFavoritedThreads])
+
+  const toggleGroup = (groupKey: string) => {
+    setCollapsedGroups((state) => ({
+      ...state,
+      [groupKey]: !state[groupKey],
+    }))
+  }
 
   // Project handlers
   const handleProjectDelete = (id: string) => {
@@ -563,10 +629,7 @@ const LeftPanel = () => {
                 )}
 
                 {unFavoritedThreads.length > 0 && (
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="block text-xs text-left-panel-fg/50 px-1 font-semibold">
-                      {t('common:recents')}
-                    </span>
+                  <div className="flex items-center justify-end mb-2">
                     <div className="relative">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -595,10 +658,6 @@ const LeftPanel = () => {
 
                 {filteredThreads.length === 0 && searchTerm.length > 0 && (
                   <div className="px-1 mt-2">
-                    <span className="block text-xs text-left-panel-fg/50 px-1 font-semibold mb-2">
-                      {t('common:recents')}
-                    </span>
-
                     <div className="flex items-center gap-1 text-left-panel-fg/80">
                       <IconSearch size={18} />
                       <h6 className="font-medium text-base">
@@ -629,7 +688,61 @@ const LeftPanel = () => {
                 )}
 
                 <div className="flex flex-col">
-                  <ThreadList threads={unFavoritedThreads} />
+                  {[
+                    {
+                      key: 'today',
+                      title: t('common:threadGroups.today'),
+                      threads: threadGroups.today,
+                    },
+                    {
+                      key: 'yesterday',
+                      title: t('common:threadGroups.yesterday'),
+                      threads: threadGroups.yesterday,
+                    },
+                    {
+                      key: 'last7Days',
+                      title: t('common:threadGroups.last7Days'),
+                      threads: threadGroups.last7Days,
+                    },
+                    {
+                      key: 'last30Days',
+                      title: t('common:threadGroups.last30Days'),
+                      threads: threadGroups.last30Days,
+                    },
+                    {
+                      key: 'thisYear',
+                      title: t('common:threadGroups.thisYear'),
+                      threads: threadGroups.thisYear,
+                    },
+                    {
+                      key: 'older',
+                      title: t('common:threadGroups.older'),
+                      threads: threadGroups.older,
+                    },
+                  ].map((group) => {
+                    if (!group.threads.length) return null
+                    const isCollapsed = collapsedGroups[group.key] ?? false
+                    return (
+                      <div key={group.key} className="mb-2 last:mb-0">
+                        <button
+                          className="flex items-center gap-1 text-xs text-left-panel-fg/50 px-1 font-semibold w-full hover:text-left-panel-fg/70"
+                          onClick={() => toggleGroup(group.key)}
+                        >
+                          {isCollapsed ? (
+                            <IconChevronRight size={14} />
+                          ) : (
+                            <IconChevronDown size={14} />
+                          )}
+                          <span>{group.title}</span>
+                        </button>
+                        {!isCollapsed && (
+                          <div className="mt-1">
+                            <ThreadList threads={group.threads} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>
