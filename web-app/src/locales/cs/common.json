@@ -15,6 +15,15 @@
   "newChat": "Nový chat",
   "favorites": "Oblíbené",
   "recents": "Nedávné",
+  "conversationHistory": "Historie konverzací",
+  "threadGroups": {
+    "today": "Dnes",
+    "yesterday": "Včera",
+    "last7Days": "Posledních 7 dní",
+    "last30Days": "Posledních 30 dní",
+    "thisYear": "Tento rok",
+    "older": "Starší"
+  },
   "hub": "Centrum",
   "helpSupport": "Nápověda a podpora",
   "helpUsImproveJan": "Pomozte nám vylepšit Jan",

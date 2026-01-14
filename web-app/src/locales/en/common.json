@@ -15,6 +15,16 @@
   "keyboardShortcuts": "Shortcuts",
   "newChat": "New Chat",
   "favorites": "Favorites",
+  "recents": "Recents",
+  "conversationHistory": "Conversation history",
+  "threadGroups": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "last7Days": "Past 7 days",
+    "last30Days": "Past 30 days",
+    "thisYear": "This year",
+    "older": "Older"
+  },
   "archive": "Archive",
   "archived": "Archived",
   "unarchive": "Unarchive",
@@ -317,15 +327,7 @@
     "allThreadsUnfavorited": {
       "title": "All Threads Unfavorited",
       "description": "All threads have been removed from your favorites."
-  },
-  "threadGroups": {
-    "today": "Today",
-    "yesterday": "Yesterday",
-    "last7Days": "Past 7 days",
-    "last30Days": "Past 30 days",
-    "thisYear": "This year",
-    "older": "Older"
-  },
+    },
     "deleteAllThreads": {
       "title": "Delete All Threads",
       "description": "All threads have been permanently deleted."

@@ -629,7 +629,10 @@ const LeftPanel = () => {
                 )}
 
                 {unFavoritedThreads.length > 0 && (
-                  <div className="flex items-center justify-end mb-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="block text-xs text-left-panel-fg/50 px-1 font-semibold">
+                      {t('common:conversationHistory')}
+                    </span>
                     <div className="relative">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

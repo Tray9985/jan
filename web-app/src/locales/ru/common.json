@@ -15,6 +15,15 @@
   "newChat": "Новый чат",
   "favorites": "Избранное",
   "recents": "Недавние",
+  "conversationHistory": "История диалогов",
+  "threadGroups": {
+    "today": "Сегодня",
+    "yesterday": "Вчера",
+    "last7Days": "Последние 7 дней",
+    "last30Days": "Последние 30 дней",
+    "thisYear": "В этом году",
+    "older": "Более старые"
+  },
   "hub": "Хаб",
   "helpSupport": "Справка и поддержка",
   "helpUsImproveJan": "Помогите нам улучшить Jan",

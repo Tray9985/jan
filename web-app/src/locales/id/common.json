@@ -14,6 +14,15 @@
   "newChat": "Obrolan Baru",
   "favorites": "Favorit",
   "recents": "Terbaru",
+  "conversationHistory": "Riwayat percakapan",
+  "threadGroups": {
+    "today": "Hari ini",
+    "yesterday": "Kemarin",
+    "last7Days": "7 hari terakhir",
+    "last30Days": "30 hari terakhir",
+    "thisYear": "Tahun ini",
+    "older": "Lebih lama"
+  },
   "hub": "Hub",
   "helpSupport": "Bantuan & Dukungan",
   "helpUsImproveJan": "Bantu Kami Meningkatkan Jan",

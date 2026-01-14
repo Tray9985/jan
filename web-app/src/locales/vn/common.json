@@ -14,6 +14,15 @@
   "newChat": "Trò chuyện Mới",
   "favorites": "Yêu thích",
   "recents": "Gần đây",
+  "conversationHistory": "Lịch sử hội thoại",
+  "threadGroups": {
+    "today": "Hôm nay",
+    "yesterday": "Hôm qua",
+    "last7Days": "7 ngày qua",
+    "last30Days": "30 ngày qua",
+    "thisYear": "Năm nay",
+    "older": "Cũ hơn"
+  },
   "hub": "Hub",
   "helpSupport": "Trợ giúp & Hỗ trợ",
   "helpUsImproveJan": "Giúp chúng tôi cải thiện Jan",

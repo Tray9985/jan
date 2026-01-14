@@ -15,6 +15,15 @@
   "newChat": "Novo Chat",
   "favorites": "Favoritos",
   "recents": "Recentes",
+  "conversationHistory": "Histórico de conversas",
+  "threadGroups": {
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "last7Days": "Últimos 7 dias",
+    "last30Days": "Últimos 30 dias",
+    "thisYear": "Este ano",
+    "older": "Mais antigos"
+  },
   "hub": "Hub",
   "helpSupport": "Ajuda e Suporte",
   "helpUsImproveJan": "Ajude-nos a Melhorar o Jan",

@@ -14,6 +14,15 @@
   "newChat": "新聊天",
   "favorites": "我的最愛",
   "recents": "最近",
+  "conversationHistory": "對話記錄",
+  "threadGroups": {
+    "today": "今天",
+    "yesterday": "昨天",
+    "last7Days": "過去7天",
+    "last30Days": "過去30天",
+    "thisYear": "今年",
+    "older": "更早"
+  },
   "hub": "中心",
   "helpSupport": "幫助與支援",
   "helpUsImproveJan": "幫助我們改進 Jan",

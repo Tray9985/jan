@@ -14,6 +14,15 @@
   "newChat": "Nowy Czat",
   "favorites": "Ulubione",
   "recents": "Ostatnie",
+  "conversationHistory": "Historia rozmów",
+  "threadGroups": {
+    "today": "Dzisiaj",
+    "yesterday": "Wczoraj",
+    "last7Days": "Ostatnie 7 dni",
+    "last30Days": "Ostatnie 30 dni",
+    "thisYear": "W tym roku",
+    "older": "Starsze"
+  },
   "hub": "Centrum Modeli",
   "helpSupport": "Pomoc i Obsługa",
   "helpUsImproveJan": "Pomóż nam ulepszyć Jan",

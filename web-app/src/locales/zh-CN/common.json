@@ -15,6 +15,16 @@
   "keyboardShortcuts": "快捷键",
   "newChat": "新建聊天",
   "favorites": "收藏",
+  "recents": "最近",
+  "conversationHistory": "会话记录",
+  "threadGroups": {
+    "today": "今天",
+    "yesterday": "昨天",
+    "last7Days": "过去7天",
+    "last30Days": "过去30天",
+    "thisYear": "今年",
+    "older": "更早"
+  },
   "archive": "归档",
   "archived": "已归档",
   "unarchive": "取消归档",
@@ -307,15 +317,7 @@
     "allThreadsUnfavorited": {
       "title": "所有会话已取消收藏",
       "description": "所有会话已从您的收藏中移除。"
-  },
-  "threadGroups": {
-    "today": "今天",
-    "yesterday": "昨天",
-    "last7Days": "过去7天",
-    "last30Days": "过去30天",
-    "thisYear": "今年",
-    "older": "更早"
-  },
+    },
     "deleteAllThreads": {
       "title": "删除所有会话",
       "description": "所有会话已被永久删除。"
