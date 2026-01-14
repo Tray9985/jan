@@ -44,7 +44,10 @@ describe('useGeneralSetting', () => {
       huggingfaceToken: undefined,
       auxiliaryModels: {
         threadTitle: null,
+        contextSummary: null,
       },
+      contextSummaryEnabled: true,
+      contextSummaryMessageLimit: 15,
     })
 
     // Setup default mock behavior to prevent errors
@@ -64,11 +67,18 @@ describe('useGeneralSetting', () => {
     expect(result.current.currentLanguage).toBe('en')
     expect(result.current.spellCheckChatInput).toBe(true)
     expect(result.current.huggingfaceToken).toBeUndefined()
-    expect(result.current.auxiliaryModels).toEqual({ threadTitle: null })
+    expect(result.current.auxiliaryModels).toEqual({
+      threadTitle: null,
+      contextSummary: null,
+    })
+    expect(result.current.contextSummaryEnabled).toBe(true)
+    expect(result.current.contextSummaryMessageLimit).toBe(15)
     expect(typeof result.current.setCurrentLanguage).toBe('function')
     expect(typeof result.current.setSpellCheckChatInput).toBe('function')
     expect(typeof result.current.setHuggingfaceToken).toBe('function')
     expect(typeof result.current.setAuxiliaryModel).toBe('function')
+    expect(typeof result.current.setContextSummaryEnabled).toBe('function')
+    expect(typeof result.current.setContextSummaryMessageLimit).toBe('function')
   })
 
   describe('setCurrentLanguage', () => {
@@ -158,6 +168,40 @@ describe('useGeneralSetting', () => {
     })
   })
 
+  describe('setContextSummaryEnabled', () => {
+    it('should enable context summary', () => {
+      const { result } = renderHook(() => useGeneralSetting())
+
+      act(() => {
+        result.current.setContextSummaryEnabled(true)
+      })
+
+      expect(result.current.contextSummaryEnabled).toBe(true)
+    })
+
+    it('should disable context summary', () => {
+      const { result } = renderHook(() => useGeneralSetting())
+
+      act(() => {
+        result.current.setContextSummaryEnabled(false)
+      })
+
+      expect(result.current.contextSummaryEnabled).toBe(false)
+    })
+  })
+
+  describe('setContextSummaryMessageLimit', () => {
+    it('should set context summary message limit', () => {
+      const { result } = renderHook(() => useGeneralSetting())
+
+      act(() => {
+        result.current.setContextSummaryMessageLimit(20)
+      })
+
+      expect(result.current.contextSummaryMessageLimit).toBe(20)
+    })
+  })
+
   describe('setHuggingfaceToken', () => {
     it('should set huggingface token', () => {
       const { result } = renderHook(() => useGeneralSetting())
@@ -244,6 +288,7 @@ describe('useGeneralSetting', () => {
 
       expect(result.current.auxiliaryModels).toEqual({
         threadTitle: { id: 'gpt-4', provider: 'openai' },
+        contextSummary: null,
       })
     })
 

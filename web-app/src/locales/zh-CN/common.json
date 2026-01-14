@@ -89,6 +89,7 @@
   "tools": "工具",
   "webSearch": "网页搜索",
   "reasoning": "推理",
+  "contextSummary": "上下文压缩",
   "proactive": "主动模式",
   "selectAModel": "选择一个模型",
   "noToolsAvailable": "无可用工具",
@@ -326,6 +327,14 @@
       "missingProvider": "模型提供方不可用。",
       "noMessages": "该会话没有可用的消息。",
       "generic": "生成标题失败，请重试。"
+    },
+    "contextSummaryStarted": {
+      "title": "正在压缩上下文",
+      "description": "正在总结较早消息..."
+    },
+    "contextSummaryFailed": {
+      "title": "上下文压缩失败",
+      "description": "总结较早消息失败，请重试。"
     },
     "editMessage": {
       "title": "编辑消息",

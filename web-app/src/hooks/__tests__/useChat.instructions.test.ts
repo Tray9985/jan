@@ -170,10 +170,22 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn())),
 }))
 
+vi.mock('sonner', () => ({
+  toast: {
+    error: vi.fn(),
+    info: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}))
+
 vi.mock('@/hooks/useServiceHub', () => ({
   useServiceHub: () => ({
     models: () => ({
       startModel: vi.fn(() => Promise.resolve()),
+    }),
+    core: () => ({
+      invoke: vi.fn(() => Promise.resolve()),
     }),
   }),
 }))

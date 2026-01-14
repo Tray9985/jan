@@ -47,8 +47,14 @@ import { Attachment } from '@/types/attachment'
 import { MCPTool } from '@/types/completion'
 import { useMCPServers } from '@/hooks/useMCPServers'
 import { useAttachmentIngestionPrompt } from './useAttachmentIngestionPrompt'
-import { useGeneralSetting } from '@/hooks/useGeneralSetting'
+import {
+  DEFAULT_CONTEXT_SUMMARY_MESSAGE_LIMIT,
+  useGeneralSetting,
+} from '@/hooks/useGeneralSetting'
 import { resolveAuxiliaryModel } from '@/utils/auxiliaryModels'
+import { generateContextSummary } from '@/lib/contextSummary'
+import { i18n } from '@/i18n/react-i18next-compat'
+import { toast } from 'sonner'
 
 // Helper to create thread content with consistent structure
 const createThreadContent = (
@@ -712,12 +718,130 @@ export const useChat = () => {
         const contextMessages = continueFromMessageId
           ? messages.filter((m) => m.id !== continueFromMessageId)
           : messages
+        const filteredContextMessages = contextMessages.filter(
+          (contextMessage) => !contextMessage.metadata?.error
+        )
+        const baseInstruction = currentAssistant
+          ? renderInstructions(currentAssistant.instructions)
+          : undefined
+        let completionContextMessages = filteredContextMessages
+        let systemInstruction = baseInstruction
+
+        const {
+          auxiliaryModels,
+          contextSummaryEnabled,
+          contextSummaryMessageLimit,
+        } = useGeneralSetting.getState()
+        const normalizedSummaryLimit =
+          typeof contextSummaryMessageLimit === 'number' &&
+          Number.isFinite(contextSummaryMessageLimit)
+            ? contextSummaryMessageLimit
+            : DEFAULT_CONTEXT_SUMMARY_MESSAGE_LIMIT
+        const summaryLimit = Math.max(1, Math.floor(normalizedSummaryLimit))
+
+        if (
+          contextSummaryEnabled &&
+          filteredContextMessages.length > summaryLimit
+        ) {
+          const summaryMessages = filteredContextMessages.slice(
+            0,
+            -summaryLimit
+          )
+          const recentMessages = filteredContextMessages.slice(-summaryLimit)
+          const providers = useModelProvider.getState().providers
+          const resolvedSummaryModel = resolveAuxiliaryModel(
+            providers,
+            auxiliaryModels?.contextSummary
+          )
+          const fallbackModel =
+            selectedModel ??
+            activeProvider.models?.find(
+              (model) => model.id === activeThread.model?.id
+            )
+          const summaryProvider = resolvedSummaryModel?.provider ?? activeProvider
+          const summaryModel = resolvedSummaryModel?.model ?? fallbackModel
+
+          if (!summaryModel) {
+            throw new Error('No model available for context summary')
+          }
+
+          const summaryThread = resolvedSummaryModel
+            ? {
+                ...activeThread,
+                model: {
+                  id: summaryModel.id,
+                  provider: summaryProvider.provider,
+                },
+              }
+            : activeThread
+          const summaryModelSettings = summaryModel.settings
+            ? Object.fromEntries(
+                Object.entries(summaryModel.settings)
+                  .filter(
+                    ([key, value]) =>
+                      key !== 'ctx_len' &&
+                      key !== 'ngl' &&
+                      value.controller_props?.value !== undefined &&
+                      value.controller_props?.value !== null &&
+                      value.controller_props?.value !== ''
+                  )
+                  .map(([key, value]) => [key, value.controller_props?.value])
+              )
+            : undefined
+          const summaryBaseParams = {
+            ...summaryModelSettings,
+            ...(currentAssistant?.parameters || {}),
+          } as Record<string, unknown>
+          const summarySupportsReasoning =
+            summaryModel.capabilities?.includes('reasoning') ?? false
+
+          const summaryToastId = `context-summary-${activeThread.id}`
+          toast.loading(i18n.t('common:toast.contextSummaryStarted.title'), {
+            id: summaryToastId,
+            description: i18n.t('common:toast.contextSummaryStarted.description'),
+            duration: Infinity,
+          })
+
+          try {
+            const summary = await generateContextSummary({
+              thread: summaryThread,
+              provider: summaryProvider,
+              messages: summaryMessages,
+              baseParams: summaryBaseParams,
+              supportsReasoning: summarySupportsReasoning,
+              abortController,
+            })
+            const normalizedSummary = summary.replace(/\r?\n/g, '\\n')
+            const summaryLogMessage = `Context summary thread=${activeThread.id} model=${summaryModel.id} provider=${summaryProvider.provider} summary=${normalizedSummary}`
+            serviceHub
+              .core()
+              .invoke('log', {
+                message: summaryLogMessage,
+                file_name: 'context_summary',
+              })
+              .catch((error) => {
+                console.error('Failed to write context summary log:', error)
+              })
+            const summaryInstruction = `Context summary of earlier conversation:\n${summary}`
+            systemInstruction = systemInstruction
+              ? `${systemInstruction}\n\n${summaryInstruction}`
+              : summaryInstruction
+            completionContextMessages = recentMessages
+          } catch (error) {
+            toast.error(i18n.t('common:toast.contextSummaryFailed.title'), {
+              description: i18n.t(
+                'common:toast.contextSummaryFailed.description'
+              ),
+            })
+            throw error
+          } finally {
+            toast.dismiss(summaryToastId)
+          }
+        }
 
         const builder = new CompletionMessagesBuilder(
-          contextMessages,
-          currentAssistant
-            ? renderInstructions(currentAssistant.instructions)
-            : undefined
+          completionContextMessages,
+          systemInstruction
         )
         // Using addUserMessage to respect legacy code. Should be using the userContent above.
         if (troubleshooting && !continueFromMessageId) {

@@ -30,6 +30,7 @@ import {
   IconLoader2,
   IconCheck,
   IconWorld,
+  IconFold,
 } from '@tabler/icons-react'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useGeneralSetting } from '@/hooks/useGeneralSetting'
@@ -114,6 +115,12 @@ const ChatInput = ({
   )
   const tokenCounterCompact = useGeneralSetting(
     (state) => state.tokenCounterCompact
+  )
+  const contextSummaryEnabled = useGeneralSetting(
+    (state) => state.contextSummaryEnabled
+  )
+  const setContextSummaryEnabled = useGeneralSetting(
+    (state) => state.setContextSummaryEnabled
   )
   useTools()
 
@@ -1539,6 +1546,32 @@ const ChatInput = ({
                     </Tooltip>
                   </TooltipProvider>
                 )}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div
+                          className={cn(
+                            'h-7 p-1 flex items-center justify-center rounded-sm hover:bg-main-view-fg/10 transition-all duration-200 ease-in-out gap-1 cursor-pointer',
+                            contextSummaryEnabled && 'bg-accent/10'
+                          )}
+                          onClick={() =>
+                            setContextSummaryEnabled(!contextSummaryEnabled)
+                          }
+                        >
+                        <IconFold
+                          size={18}
+                          className={cn(
+                            'text-main-view-fg/50',
+                            contextSummaryEnabled && 'text-accent'
+                          )}
+                        />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t('contextSummary')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
 

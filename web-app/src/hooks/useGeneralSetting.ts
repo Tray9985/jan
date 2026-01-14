@@ -3,7 +3,9 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { localStorageKey } from '@/constants/localStorage'
 import { ExtensionManager } from '@/lib/extension'
 
-export type AuxiliaryModelKey = 'threadTitle'
+export const DEFAULT_CONTEXT_SUMMARY_MESSAGE_LIMIT = 15
+
+export type AuxiliaryModelKey = 'threadTitle' | 'contextSummary'
 export type AuxiliaryModels = Record<AuxiliaryModelKey, ThreadModel | null>
 
 type GeneralSettingState = {
@@ -12,7 +14,11 @@ type GeneralSettingState = {
   tokenCounterCompact: boolean
   huggingfaceToken?: string
   auxiliaryModels: AuxiliaryModels
+  contextSummaryEnabled: boolean
+  contextSummaryMessageLimit: number
   setAuxiliaryModel: (key: AuxiliaryModelKey, model: ThreadModel | null) => void
+  setContextSummaryEnabled: (value: boolean) => void
+  setContextSummaryMessageLimit: (value: number) => void
   setHuggingfaceToken: (token: string) => void
   setSpellCheckChatInput: (value: boolean) => void
   setTokenCounterCompact: (value: boolean) => void
@@ -28,13 +34,24 @@ export const useGeneralSetting = create<GeneralSettingState>()(
       huggingfaceToken: undefined,
       auxiliaryModels: {
         threadTitle: null,
+        contextSummary: null,
       },
+      contextSummaryEnabled: true,
+      contextSummaryMessageLimit: DEFAULT_CONTEXT_SUMMARY_MESSAGE_LIMIT,
       setAuxiliaryModel: (key, model) =>
         set((state) => ({
           auxiliaryModels: {
             ...state.auxiliaryModels,
             [key]: model,
           },
+        })),
+      setContextSummaryEnabled: (value) =>
+        set(() => ({
+          contextSummaryEnabled: value,
+        })),
+      setContextSummaryMessageLimit: (value) =>
+        set(() => ({
+          contextSummaryMessageLimit: value,
         })),
       setSpellCheckChatInput: (value) => set({ spellCheckChatInput: value }),
       setTokenCounterCompact: (value) => set({ tokenCounterCompact: value }),
@@ -65,4 +82,3 @@ export const useGeneralSetting = create<GeneralSettingState>()(
     }
   )
 )
-

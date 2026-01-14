@@ -116,6 +116,15 @@ pub async fn read_logs<R: Runtime>(app: AppHandle<R>) -> Result<String, String> 
     }
 }
 
+#[tauri::command]
+pub fn log(message: String, file_name: Option<String>) {
+    if let Some(target) = file_name {
+        log::info!(target: &target, "{message}");
+    } else {
+        log::info!("{message}");
+    }
+}
+
 // check if a system library is available
 #[tauri::command]
 pub fn is_library_available(library: &str) -> bool {
@@ -127,4 +136,3 @@ pub fn is_library_available(library: &str) -> bool {
         }
     }
 }
-

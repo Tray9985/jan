@@ -89,6 +89,7 @@
   "tools": "Tools",
   "webSearch": "Web Search",
   "reasoning": "Reasoning",
+  "contextSummary": "Context Summary",
   "proactive": "Proactive",
   "selectAModel": "Select a model",
   "noToolsAvailable": "No tools available",
@@ -336,6 +337,14 @@
       "missingProvider": "Model provider is not available.",
       "noMessages": "No messages found for this thread.",
       "generic": "Failed to generate title. Please try again."
+    },
+    "contextSummaryStarted": {
+      "title": "Compressing context",
+      "description": "Summarizing earlier messages..."
+    },
+    "contextSummaryFailed": {
+      "title": "Context compression failed",
+      "description": "Failed to summarize earlier messages."
     },
     "editMessage": {
       "title": "Edit Message",

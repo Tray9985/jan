@@ -56,6 +56,8 @@ vi.mock('@/hooks/useGeneralSetting', () => ({
       allowSendWhenUnloaded: false,
       spellCheckChatInput: true,
       experimentalFeatures: true,
+      contextSummaryEnabled: true,
+      setContextSummaryEnabled: vi.fn(),
     }
     return selector ? selector(state) : state
   },

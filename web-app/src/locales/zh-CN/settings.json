@@ -113,8 +113,14 @@
   },
   "auxiliaryModels": {
     "title": "辅助模型",
+    "threadTitleCard": "标题重命名",
     "threadTitle": "标题生成模型",
     "threadTitleDesc": "用于生成聊天标题的模型。",
+    "contextSummaryCard": "上下文摘要",
+    "contextSummary": "上下文摘要模型",
+    "contextSummaryDesc": "开启上下文压缩时，用于总结较早消息。",
+    "contextSummaryLimit": "保留最近消息数",
+    "contextSummaryLimitDesc": "超过该数量时，总结更早消息并保留最近消息。",
     "useChatModel": "使用当前聊天模型"
   },
   "hardware": {

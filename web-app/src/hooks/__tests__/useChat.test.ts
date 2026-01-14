@@ -270,6 +270,9 @@ vi.mock('../useServiceHub', () => ({
     providers: () => ({
       updateSettings: vi.fn(() => Promise.resolve()),
     }),
+    core: () => ({
+      invoke: vi.fn(() => Promise.resolve()),
+    }),
     uploads: () => ({
       ingestImage: vi.fn(() => Promise.resolve({ id: 'img-id' })),
       ingestFileAttachment: vi.fn(() => Promise.resolve({ id: 'doc-id' })),
@@ -351,6 +354,9 @@ vi.mock('@tauri-apps/api/event', () => ({
 vi.mock('sonner', () => ({
   toast: {
     error: vi.fn(),
+    info: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
   },
 }))
 

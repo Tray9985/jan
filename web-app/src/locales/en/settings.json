@@ -121,8 +121,14 @@
   },
   "auxiliaryModels": {
     "title": "Auxiliary Models",
+    "threadTitleCard": "Title Renaming",
     "threadTitle": "Thread Title Model",
     "threadTitleDesc": "Use this model to generate thread titles.",
+    "contextSummaryCard": "Context Summary",
+    "contextSummary": "Context Summary Model",
+    "contextSummaryDesc": "Use this model to summarize older messages when context compression is enabled.",
+    "contextSummaryLimit": "Keep Recent Messages",
+    "contextSummaryLimitDesc": "Summarize older messages and keep the most recent messages in the prompt.",
     "useChatModel": "Use current chat model"
   },
   "hardware": {
