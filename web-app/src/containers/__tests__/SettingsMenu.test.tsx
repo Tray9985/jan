@@ -113,6 +113,7 @@ describe('SettingsMenu', () => {
     expect(screen.getByText('common:interface')).toBeInTheDocument()
     expect(screen.getByText('common:privacy')).toBeInTheDocument()
     expect(screen.getByText('common:modelProviders')).toBeInTheDocument()
+    expect(screen.getByText('common:auxiliaryModels')).toBeInTheDocument()
     // Platform-specific features tested separately
   })
 

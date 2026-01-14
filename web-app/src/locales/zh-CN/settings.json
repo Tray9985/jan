@@ -111,6 +111,12 @@
     "resetCodeBlockSuccess": "代码块样式重置成功",
     "resetCodeBlockSuccessDesc": "代码块样式已恢复为默认值。"
   },
+  "auxiliaryModels": {
+    "title": "辅助模型",
+    "threadTitle": "标题生成模型",
+    "threadTitleDesc": "用于生成聊天标题的模型。",
+    "useChatModel": "使用当前聊天模型"
+  },
   "hardware": {
     "os": "操作系统",
     "name": "名称",

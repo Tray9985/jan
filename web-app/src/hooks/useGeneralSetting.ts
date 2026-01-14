@@ -2,11 +2,17 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { localStorageKey } from '@/constants/localStorage'
 import { ExtensionManager } from '@/lib/extension'
+
+export type AuxiliaryModelKey = 'threadTitle'
+export type AuxiliaryModels = Record<AuxiliaryModelKey, ThreadModel | null>
+
 type GeneralSettingState = {
   currentLanguage: Language
   spellCheckChatInput: boolean
   tokenCounterCompact: boolean
   huggingfaceToken?: string
+  auxiliaryModels: AuxiliaryModels
+  setAuxiliaryModel: (key: AuxiliaryModelKey, model: ThreadModel | null) => void
   setHuggingfaceToken: (token: string) => void
   setSpellCheckChatInput: (value: boolean) => void
   setTokenCounterCompact: (value: boolean) => void
@@ -20,6 +26,16 @@ export const useGeneralSetting = create<GeneralSettingState>()(
       spellCheckChatInput: true,
       tokenCounterCompact: true,
       huggingfaceToken: undefined,
+      auxiliaryModels: {
+        threadTitle: null,
+      },
+      setAuxiliaryModel: (key, model) =>
+        set((state) => ({
+          auxiliaryModels: {
+            ...state.auxiliaryModels,
+            [key]: model,
+          },
+        })),
       setSpellCheckChatInput: (value) => set({ spellCheckChatInput: value }),
       setTokenCounterCompact: (value) => set({ tokenCounterCompact: value }),
       setCurrentLanguage: (value) => set({ currentLanguage: value }),
@@ -49,5 +65,4 @@ export const useGeneralSetting = create<GeneralSettingState>()(
     }
   )
 )
-
 

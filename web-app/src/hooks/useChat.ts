@@ -47,6 +47,8 @@ import { Attachment } from '@/types/attachment'
 import { MCPTool } from '@/types/completion'
 import { useMCPServers } from '@/hooks/useMCPServers'
 import { useAttachmentIngestionPrompt } from './useAttachmentIngestionPrompt'
+import { useGeneralSetting } from '@/hooks/useGeneralSetting'
+import { resolveAuxiliaryModel } from '@/utils/auxiliaryModels'
 
 // Helper to create thread content with consistent structure
 const createThreadContent = (
@@ -1031,13 +1033,62 @@ export const useChat = () => {
             messages.length === 0 &&
             activeProvider
           ) {
+            const auxiliaryModels = useGeneralSetting.getState().auxiliaryModels
+            const providers = useModelProvider.getState().providers
+            const resolvedTitleModel = resolveAuxiliaryModel(
+              providers,
+              auxiliaryModels?.threadTitle
+            )
+            const fallbackModel =
+              selectedModel ??
+              activeProvider.models?.find(
+                (model) => model.id === activeThread.model?.id
+              )
+            const titleProvider = resolvedTitleModel?.provider ?? activeProvider
+            const titleModel = resolvedTitleModel?.model ?? fallbackModel
+
+            if (!titleModel) {
+              throw new Error('No model available for thread title generation')
+            }
+
+            const titleThread = resolvedTitleModel
+              ? {
+                  ...activeThread,
+                  model: {
+                    id: titleModel.id,
+                    provider: titleProvider.provider,
+                  },
+                }
+              : activeThread
+
+            const titleModelSettings = titleModel.settings
+              ? Object.fromEntries(
+                  Object.entries(titleModel.settings)
+                    .filter(
+                      ([key, value]) =>
+                        key !== 'ctx_len' &&
+                        key !== 'ngl' &&
+                        value.controller_props?.value !== undefined &&
+                        value.controller_props?.value !== null &&
+                        value.controller_props?.value !== ''
+                    )
+                    .map(([key, value]) => [key, value.controller_props?.value])
+                )
+              : undefined
+            const titleBaseParams = {
+              ...titleModelSettings,
+              ...(currentAssistant?.parameters || {}),
+            } as Record<string, unknown>
+            const titleSupportsReasoning =
+              titleModel.capabilities?.includes('reasoning') ?? false
+
             const title = await generateThreadTitle({
-              thread: activeThread,
-              provider: activeProvider,
+              thread: titleThread,
+              provider: titleProvider,
               userMessage: message.trim(),
               assistantMessage: finalizedMessage.content?.[0]?.text?.value || '',
-              baseParams,
-              supportsReasoning,
+              baseParams: titleBaseParams,
+              supportsReasoning: titleSupportsReasoning,
             })
             if (title) {
               renameThread(activeThread.id, title)

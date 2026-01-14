@@ -119,6 +119,12 @@
     "resetCodeBlockSuccess": "Code block style reset successfully",
     "resetCodeBlockSuccessDesc": "Code block style has been restored to default."
   },
+  "auxiliaryModels": {
+    "title": "Auxiliary Models",
+    "threadTitle": "Thread Title Model",
+    "threadTitleDesc": "Use this model to generate thread titles.",
+    "useChatModel": "Use current chat model"
+  },
   "hardware": {
     "os": "Operating System",
     "name": "Name",

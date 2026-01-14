@@ -20,6 +20,7 @@ export const route = {
     https_proxy: '/settings/https-proxy',
     hardware: '/settings/hardware',
     assistant: '/settings/assistant',
+    auxiliary_models: '/settings/auxiliary-models',
   },
   hub: {
     index: '/hub/',

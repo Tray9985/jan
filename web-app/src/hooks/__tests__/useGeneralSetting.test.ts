@@ -42,6 +42,9 @@ describe('useGeneralSetting', () => {
       spellCheckChatInput: true,
       tokenCounterCompact: true,
       huggingfaceToken: undefined,
+      auxiliaryModels: {
+        threadTitle: null,
+      },
     })
 
     // Setup default mock behavior to prevent errors
@@ -61,9 +64,11 @@ describe('useGeneralSetting', () => {
     expect(result.current.currentLanguage).toBe('en')
     expect(result.current.spellCheckChatInput).toBe(true)
     expect(result.current.huggingfaceToken).toBeUndefined()
+    expect(result.current.auxiliaryModels).toEqual({ threadTitle: null })
     expect(typeof result.current.setCurrentLanguage).toBe('function')
     expect(typeof result.current.setSpellCheckChatInput).toBe('function')
     expect(typeof result.current.setHuggingfaceToken).toBe('function')
+    expect(typeof result.current.setAuxiliaryModel).toBe('function')
   })
 
   describe('setCurrentLanguage', () => {
@@ -223,6 +228,44 @@ describe('useGeneralSetting', () => {
         { key: 'hf-token', controllerProps: { value: 'new-token' } },
         { key: 'other-setting', controllerProps: { value: 'other-value' } },
       ])
+    })
+  })
+
+  describe('setAuxiliaryModel', () => {
+    it('should set auxiliary model for thread title', () => {
+      const { result } = renderHook(() => useGeneralSetting())
+
+      act(() => {
+        result.current.setAuxiliaryModel('threadTitle', {
+          id: 'gpt-4',
+          provider: 'openai',
+        })
+      })
+
+      expect(result.current.auxiliaryModels).toEqual({
+        threadTitle: { id: 'gpt-4', provider: 'openai' },
+      })
+    })
+
+    it('should reset auxiliary model to use current chat model', () => {
+      const { result } = renderHook(() => useGeneralSetting())
+
+      act(() => {
+        result.current.setAuxiliaryModel('threadTitle', {
+          id: 'gpt-4',
+          provider: 'openai',
+        })
+      })
+      expect(result.current.auxiliaryModels.threadTitle).toEqual({
+        id: 'gpt-4',
+        provider: 'openai',
+      })
+
+      act(() => {
+        result.current.setAuxiliaryModel('threadTitle', null)
+      })
+
+      expect(result.current.auxiliaryModels.threadTitle).toBeNull()
     })
   })
 

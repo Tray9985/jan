@@ -18,8 +18,10 @@ import { toast } from 'sonner'
 import { useMessages } from '@/hooks/useMessages'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { useAssistant } from '@/hooks/useAssistant'
+import { useGeneralSetting } from '@/hooks/useGeneralSetting'
 import { generateThreadTitle } from '@/lib/threadTitle'
 import { removeReasoningContent } from '@/utils/reasoning'
+import { resolveAuxiliaryModel } from '@/utils/auxiliaryModels'
 
 interface RenameThreadDialogProps {
   thread: Thread
@@ -46,8 +48,9 @@ export function RenameThreadDialog({
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const getMessages = useMessages((state) => state.getMessages)
-  const { getProviderByName } = useModelProvider()
+  const { getProviderByName, providers } = useModelProvider()
   const currentAssistant = useAssistant((state) => state.currentAssistant)
+  const auxiliaryModels = useGeneralSetting((state) => state.auxiliaryModels)
   const isControlled = open !== undefined
   const isOpen = isControlled ? !!open : internalOpen
   const setOpenSafe = (next: boolean) => {
@@ -131,8 +134,8 @@ export function RenameThreadDialog({
       })
       return
     }
-    const provider = getProviderByName(providerName)
-    if (!provider) {
+    const fallbackProvider = getProviderByName(providerName)
+    if (!fallbackProvider) {
       toast.error(t('common:toast.autoRenameFailed.title'), {
         description: t('common:toast.autoRenameFailed.missingProvider'),
       })
@@ -148,7 +151,32 @@ export function RenameThreadDialog({
       return
     }
 
-    const modelConfig = provider.models?.find((m) => m.id === modelId)
+    const resolvedTitleModel = resolveAuxiliaryModel(
+      providers,
+      auxiliaryModels.threadTitle
+    )
+    const titleProvider = resolvedTitleModel?.provider ?? fallbackProvider
+    const titleModel =
+      resolvedTitleModel?.model ??
+      fallbackProvider.models?.find((m) => m.id === modelId)
+    if (!titleModel) {
+      toast.error(t('common:toast.autoRenameFailed.title'), {
+        description: t('common:toast.autoRenameFailed.missingModel'),
+      })
+      return
+    }
+
+    const titleThread = resolvedTitleModel
+      ? {
+          ...thread,
+          model: {
+            id: titleModel.id,
+            provider: titleProvider.provider,
+          },
+        }
+      : thread
+
+    const modelConfig = titleModel
     const modelSettings = modelConfig?.settings
       ? Object.fromEntries(
           Object.entries(modelConfig.settings)
@@ -173,8 +201,8 @@ export function RenameThreadDialog({
     setIsGeneratingTitle(true)
     try {
       const generatedTitle = await generateThreadTitle({
-        thread,
-        provider,
+        thread: titleThread,
+        provider: titleProvider,
         userMessage: '',
         assistantMessage: '',
         baseParams,

@@ -98,6 +98,12 @@ const SettingsMenu = () => {
       isEnabled: PlatformFeatures[PlatformFeature.MODEL_PROVIDER_SETTINGS],
     },
     {
+      title: 'common:auxiliaryModels',
+      route: route.settings.auxiliary_models,
+      hasSubMenu: false,
+      isEnabled: true,
+    },
+    {
       title: 'common:assistants',
       route: route.settings.assistant,
       hasSubMenu: false,
