@@ -6,28 +6,22 @@ import { ContentType, ThreadMessage } from '@janhq/core'
 import { isCompletionResponse, sendCompletion } from '@/lib/completion'
 import { removeReasoningContent } from '@/utils/reasoning'
 
-type ToolCallRecord = {
-  tool?: {
-    id?: number | string
-    function?: {
-      name?: string
-      arguments?: object | string
-    }
-  }
-  response?: unknown
-  state?: string
-}
+const CONTEXT_SUMMARY_PROMPT = `Summarize the conversation as a numbered list of Q/A pairs so the assistant can continue without earlier messages.
 
-const CONTEXT_SUMMARY_PROMPT = `Summarize the conversation so the assistant can continue without the earlier messages.
+Rules:
+- Each item is one pair: a user question and the assistant’s answer.
+- Keep the user question verbatim.
+- The answer should be a concise summary within 100 characters. If the original answer is already 100 characters or fewer, keep it unchanged.
+- If a user question has no assistant answer yet, leave the answer empty.
+- Use the conversation’s main language.
 
-Requirements:
-- Keep key facts, decisions, constraints, and user preferences.
-- Preserve code snippets, file paths, commands, and identifiers.
-- Include tool call results when they matter.
-- Use the original language(s) from the conversation.
-- Be concise and avoid speculation.
+Output format:
+1) Question: ...
+   Answer: ...
+2) Question: ...
+   Answer: ...
 
-Return only the summary.`
+Return only the list.`
 
 const getInlineFileContents = (message: ThreadMessage) => {
   const inlineFileContents = Array.isArray(
@@ -79,67 +73,6 @@ const formatMessageContent = (message: ThreadMessage) => {
   return buildInlineText(normalizedText, inlineText)
 }
 
-const formatToolArguments = (args: object | string | undefined) => {
-  if (!args) return ''
-  if (typeof args === 'string') return args
-  return JSON.stringify(args)
-}
-
-const formatToolResponse = (response: unknown) => {
-  if (response === undefined || response === null) return ''
-  if (typeof response === 'string') return response
-  if (typeof response === 'object') {
-    const result = response as {
-      content?: Array<{
-        text?: string
-        data?: string
-        image_url?: { url?: string }
-      }>
-      error?: string
-    }
-    if (Array.isArray(result.content) && result.content.length) {
-      const formatted = result.content
-        .map((part) => {
-          if (part.text) return part.text
-          if (part.image_url?.url) return `[image: ${part.image_url.url}]`
-          if (part.data) return '[image data omitted]'
-          return ''
-        })
-        .filter(Boolean)
-        .join('\n')
-      if (formatted) return formatted
-    }
-    if (result.error) {
-      return `Error: ${result.error}`
-    }
-  }
-  return JSON.stringify(response)
-}
-
-const formatToolCalls = (message: ThreadMessage) => {
-  const toolCalls = Array.isArray(
-    (message.metadata as { tool_calls?: ToolCallRecord[] })?.tool_calls
-  )
-    ? ((message.metadata as { tool_calls?: ToolCallRecord[] }).tool_calls ?? [])
-    : []
-
-  if (!toolCalls.length) return ''
-
-  const formattedCalls = toolCalls
-    .map((call, index) => {
-      const name = call.tool?.function?.name ?? 'unknown_tool'
-      const args = formatToolArguments(call.tool?.function?.arguments)
-      const result = formatToolResponse(call.response)
-      const lines = [`Tool call ${index + 1}: ${name}`]
-      if (args) lines.push(`Arguments: ${args}`)
-      if (result) lines.push(`Result: ${result}`)
-      return lines.join('\n')
-    })
-    .join('\n\n')
-
-  return `Tool calls:\n${formattedCalls}`
-}
-
 const formatConversationText = (messages: ThreadMessage[]) => {
   return messages
     .map((message) => {
@@ -152,9 +85,7 @@ const formatConversationText = (messages: ThreadMessage[]) => {
               ? 'System'
               : 'Tool'
       const content = formatMessageContent(message)
-      const toolCalls = formatToolCalls(message)
-      const combined = [content, toolCalls].filter(Boolean).join('\n')
-      const normalized = combined || '.'
+      const normalized = content || '.'
       return `${roleLabel}:\n${normalized}`
     })
     .join('\n\n')

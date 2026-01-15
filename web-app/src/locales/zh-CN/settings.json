@@ -119,8 +119,8 @@
     "contextSummaryCard": "上下文摘要",
     "contextSummary": "上下文摘要模型",
     "contextSummaryDesc": "开启上下文压缩时，用于总结较早消息。",
-    "contextSummaryLimit": "保留最近消息数",
-    "contextSummaryLimitDesc": "超过该数量时，总结更早消息并保留最近消息。",
+    "contextSummaryLimit": "保留最近对话组数",
+    "contextSummaryLimitDesc": "超过该数量时，总结更早的问答对并保留最近对话组。",
     "useChatModel": "使用当前聊天模型"
   },
   "hardware": {

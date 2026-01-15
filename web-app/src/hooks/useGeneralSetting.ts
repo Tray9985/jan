@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { localStorageKey } from '@/constants/localStorage'
 import { ExtensionManager } from '@/lib/extension'
+import { useContextSummaryCache } from '@/hooks/useContextSummaryCache'
 
 export const DEFAULT_CONTEXT_SUMMARY_MESSAGE_LIMIT = 15
 
@@ -46,13 +47,19 @@ export const useGeneralSetting = create<GeneralSettingState>()(
           },
         })),
       setContextSummaryEnabled: (value) =>
-        set(() => ({
-          contextSummaryEnabled: value,
-        })),
+        set(() => {
+          useContextSummaryCache.getState().clearAll()
+          return {
+            contextSummaryEnabled: value,
+          }
+        }),
       setContextSummaryMessageLimit: (value) =>
-        set(() => ({
-          contextSummaryMessageLimit: value,
-        })),
+        set(() => {
+          useContextSummaryCache.getState().clearAll()
+          return {
+            contextSummaryMessageLimit: value,
+          }
+        }),
       setSpellCheckChatInput: (value) => set({ spellCheckChatInput: value }),
       setTokenCounterCompact: (value) => set({ tokenCounterCompact: value }),
       setCurrentLanguage: (value) => set({ currentLanguage: value }),

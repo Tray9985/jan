@@ -38,6 +38,7 @@ import { useModelLoad } from './useModelLoad'
 import {
   ReasoningProcessor,
   extractReasoningFromMessage,
+  removeReasoningContent,
 } from '@/utils/reasoning'
 import { generateThreadTitle } from '@/lib/threadTitle'
 import { useAssistant } from './useAssistant'
@@ -55,6 +56,7 @@ import { resolveAuxiliaryModel } from '@/utils/auxiliaryModels'
 import { generateContextSummary } from '@/lib/contextSummary'
 import { i18n } from '@/i18n/react-i18next-compat'
 import { toast } from 'sonner'
+import { useContextSummaryCache } from '@/hooks/useContextSummaryCache'
 
 // Helper to create thread content with consistent structure
 const createThreadContent = (
@@ -87,6 +89,71 @@ const cancelFrame = (handle: number | undefined) => {
 }
 
 const ATTACHMENT_AUTO_INLINE_FALLBACK_BYTES = 512 * 1024
+
+const getMessageText = (message: ThreadMessage) => {
+  const parts = Array.isArray(message.content) ? message.content : []
+  const contentText = parts
+    .map((part) => {
+      if (part.type === ContentType.Text) {
+        return part.text?.value ?? ''
+      }
+      return ''
+    })
+    .filter(Boolean)
+    .join('\n')
+
+  return message.role === 'assistant'
+    ? removeReasoningContent(contentText)
+    : contentText
+}
+
+const isAssistantFinalMessage = (message: ThreadMessage) => {
+  if (message.role !== 'assistant') return false
+  if (message.status && message.status !== MessageStatus.Ready) return false
+  return getMessageText(message).trim().length > 0
+}
+
+type ConversationPair = {
+  question: ThreadMessage
+  answer?: ThreadMessage
+}
+
+const buildConversationPairs = (messages: ThreadMessage[]) => {
+  const pairs: ConversationPair[] = []
+  let pendingQuestion: ThreadMessage | null = null
+
+  messages.forEach((message) => {
+    if (message.role === 'user') {
+      if (pendingQuestion) {
+        pairs.push({ question: pendingQuestion })
+      }
+      pendingQuestion = message
+      return
+    }
+
+    if (isAssistantFinalMessage(message) && pendingQuestion) {
+      pairs.push({ question: pendingQuestion, answer: message })
+      pendingQuestion = null
+    }
+  })
+
+  if (pendingQuestion) {
+    pairs.push({ question: pendingQuestion })
+  }
+
+  return pairs
+}
+
+const flattenConversationPairs = (pairs: ConversationPair[]) => {
+  const flattened: ThreadMessage[] = []
+  pairs.forEach((pair) => {
+    flattened.push(pair.question)
+    if (pair.answer) {
+      flattened.push(pair.answer)
+    }
+  })
+  return flattened
+}
 
 // Helper to finalize and save a message
 const finalizeMessage = (
@@ -721,10 +788,16 @@ export const useChat = () => {
         const filteredContextMessages = contextMessages.filter(
           (contextMessage) => !contextMessage.metadata?.error
         )
+        const conversationPairs = buildConversationPairs(
+          filteredContextMessages
+        )
+        const eligibleContextMessages = flattenConversationPairs(
+          conversationPairs
+        )
         const baseInstruction = currentAssistant
           ? renderInstructions(currentAssistant.instructions)
           : undefined
-        let completionContextMessages = filteredContextMessages
+        let completionContextMessages = eligibleContextMessages
         let systemInstruction = baseInstruction
 
         const {
@@ -739,15 +812,22 @@ export const useChat = () => {
             : DEFAULT_CONTEXT_SUMMARY_MESSAGE_LIMIT
         const summaryLimit = Math.max(1, Math.floor(normalizedSummaryLimit))
 
+        const eligibleCount = conversationPairs.length
+        const summaryTargetCount =
+          eligibleCount > summaryLimit
+            ? Math.floor((eligibleCount - 1) / summaryLimit) * summaryLimit
+            : 0
+
         if (
           contextSummaryEnabled &&
-          filteredContextMessages.length > summaryLimit
+          summaryTargetCount > 0
         ) {
-          const summaryMessages = filteredContextMessages.slice(
-            0,
-            -summaryLimit
-          )
-          const recentMessages = filteredContextMessages.slice(-summaryLimit)
+          const cachedSummary = useContextSummaryCache
+            .getState()
+            .getSummary(activeThread.id)
+          let cachedSummaryText = cachedSummary?.summaryText
+          const summarizedCount = cachedSummary?.summarizedCount ?? 0
+          const shouldSummarize = summaryTargetCount > summarizedCount
           const providers = useModelProvider.getState().providers
           const resolvedSummaryModel = resolveAuxiliaryModel(
             providers,
@@ -796,37 +876,57 @@ export const useChat = () => {
             summaryModel.capabilities?.includes('reasoning') ?? false
 
           const summaryToastId = `context-summary-${activeThread.id}`
-          toast.loading(i18n.t('common:toast.contextSummaryStarted.title'), {
-            id: summaryToastId,
-            description: i18n.t('common:toast.contextSummaryStarted.description'),
-            duration: Infinity,
-          })
+          if (shouldSummarize) {
+            toast.loading(i18n.t('common:toast.contextSummaryStarted.title'), {
+              id: summaryToastId,
+              description: i18n.t(
+                'common:toast.contextSummaryStarted.description'
+              ),
+              duration: Infinity,
+            })
+          }
 
           try {
-            const summary = await generateContextSummary({
-              thread: summaryThread,
-              provider: summaryProvider,
-              messages: summaryMessages,
-              baseParams: summaryBaseParams,
-              supportsReasoning: summarySupportsReasoning,
-              abortController,
-            })
-            const normalizedSummary = summary.replace(/\r?\n/g, '\\n')
-            const summaryLogMessage = `Context summary thread=${activeThread.id} model=${summaryModel.id} provider=${summaryProvider.provider} summary=${normalizedSummary}`
-            serviceHub
-              .core()
-              .invoke('log', {
-                message: summaryLogMessage,
-                file_name: 'context_summary',
+            if (shouldSummarize) {
+              const summaryMessages = flattenConversationPairs(
+                conversationPairs.slice(0, summaryTargetCount)
+              )
+              const summary = await generateContextSummary({
+                thread: summaryThread,
+                provider: summaryProvider,
+                messages: summaryMessages,
+                baseParams: summaryBaseParams,
+                supportsReasoning: summarySupportsReasoning,
+                abortController,
               })
-              .catch((error) => {
-                console.error('Failed to write context summary log:', error)
+              useContextSummaryCache.getState().setSummary(activeThread.id, {
+                summarizedCount: summaryTargetCount,
+                summaryText: summary,
               })
-            const summaryInstruction = `Context summary of earlier conversation:\n${summary}`
-            systemInstruction = systemInstruction
-              ? `${systemInstruction}\n\n${summaryInstruction}`
-              : summaryInstruction
-            completionContextMessages = recentMessages
+              cachedSummaryText = summary
+
+              const normalizedSummary = summary.replace(/\r?\n/g, '\\n')
+              const summaryLogMessage = `Context summary thread=${activeThread.id} model=${summaryModel.id} provider=${summaryProvider.provider} summary=${normalizedSummary}`
+              serviceHub
+                .core()
+                .invoke('log', {
+                  message: summaryLogMessage,
+                  file_name: 'context_summary',
+                })
+                .catch((error) => {
+                  console.error('Failed to write context summary log:', error)
+                })
+            }
+
+            if (cachedSummaryText) {
+              const summaryInstruction = `Context summary of earlier conversation:\n${cachedSummaryText}`
+              systemInstruction = systemInstruction
+                ? `${systemInstruction}\n\n${summaryInstruction}`
+                : summaryInstruction
+              completionContextMessages = flattenConversationPairs(
+                conversationPairs.slice(summaryTargetCount)
+              )
+            }
           } catch (error) {
             toast.error(i18n.t('common:toast.contextSummaryFailed.title'), {
               description: i18n.t(
@@ -835,7 +935,9 @@ export const useChat = () => {
             })
             throw error
           } finally {
-            toast.dismiss(summaryToastId)
+            if (shouldSummarize) {
+              toast.dismiss(summaryToastId)
+            }
           }
         }
 

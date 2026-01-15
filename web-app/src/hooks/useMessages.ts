@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { ThreadMessage } from '@janhq/core'
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { useAssistant } from './useAssistant'
+import { useContextSummaryCache } from '@/hooks/useContextSummaryCache'
 
 type MessageState = {
   messages: Record<string, ThreadMessage[]>
@@ -69,6 +70,7 @@ export const useMessages = create<MessageState>()((set, get) => ({
     })
   },
   updateMessage: (message) => {
+    useContextSummaryCache.getState().clearSummary(message.thread_id)
     const assistants = useAssistant.getState().assistants
     const currentAssistant = useAssistant.getState().currentAssistant
 
@@ -100,6 +102,7 @@ export const useMessages = create<MessageState>()((set, get) => ({
     })
   },
   deleteMessage: (threadId, messageId) => {
+    useContextSummaryCache.getState().clearSummary(threadId)
     getServiceHub().messages().deleteMessage(threadId, messageId)
     set((state) => ({
       messages: {
@@ -112,6 +115,7 @@ export const useMessages = create<MessageState>()((set, get) => ({
     }))
   },
   clearAllMessages: () => {
+    useContextSummaryCache.getState().clearAll()
     set({ messages: {} })
   },
 }))
