@@ -59,6 +59,9 @@
     "enterModelId": "Enter model ID",
     "exploreModels": "See model list from {{provider}}",
     "addModel": "Add Model",
+    "metadataMatchTitle": "Select Model Metadata",
+    "metadataMatchDescription": "Multiple metadata matches found for \"{{modelId}}\". Please choose the correct one.",
+    "metadataMatchSelect": "Use This",
     "modelExists": "Model already exists",
     "modelExistsDesc": "Please choose a different model ID."
   },

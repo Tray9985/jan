@@ -43,8 +43,8 @@ import {
   getContextLabelClasses,
   formatContextLengthLabel,
   getModelContextLength,
-  getProviderModelsMetadataMap,
-} from '@/lib/providerModelMetadata'
+  getModelMetadataMap,
+} from '@/lib/modelMetadata'
 import { useAppState } from '@/hooks/useAppState'
 import { useShallow } from 'zustand/shallow'
 
@@ -218,7 +218,7 @@ function ProviderDetail() {
 
     setRefreshingModels(true)
     try {
-      const metadataMap = await getProviderModelsMetadataMap(provider)
+      const metadataMap = await getModelMetadataMap()
       const modelIds = await serviceHub
         .providers()
         .fetchModelsFromProvider(provider)

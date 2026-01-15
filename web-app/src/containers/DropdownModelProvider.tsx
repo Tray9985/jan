@@ -11,7 +11,7 @@ import {
   getContextLabelClasses,
   formatContextLengthLabel,
   getModelContextLength,
-} from '@/lib/providerModelMetadata'
+} from '@/lib/modelMetadata'
 import { highlightFzfMatch } from '@/utils/highlight'
 import Capabilities from './Capabilities'
 import { IconSettings, IconX } from '@tabler/icons-react'
