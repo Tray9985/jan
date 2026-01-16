@@ -37,6 +37,7 @@ import { useGeneralSetting } from '@/hooks/useGeneralSetting'
 import { useModelProvider } from '@/hooks/useModelProvider'
 
 import { useAppState } from '@/hooks/useAppState'
+import { useReasoningSetting } from '@/hooks/useReasoningSetting'
 import { MovingBorder } from './MovingBorder'
 import { useChat } from '@/hooks/useChat'
 import DropdownModelProvider from '@/containers/DropdownModelProvider'
@@ -104,8 +105,6 @@ const ChatInput = ({
   const tools = useAppState((state) => state.tools)
   const cancelToolCall = useAppState((state) => state.cancelToolCall)
   const setActiveModels = useAppState((state) => state.setActiveModels)
-  const reasoningEnabled = useAppState((state) => state.reasoningEnabled)
-  const setReasoningEnabled = useAppState((state) => state.setReasoningEnabled)
   const prompt = usePrompt((state) => state.prompt)
   const setPrompt = usePrompt((state) => state.setPrompt)
   const currentThreadId = useThreads((state) => state.currentThreadId)
@@ -136,6 +135,14 @@ const ChatInput = ({
 
   const selectedModel = useModelProvider((state) => state.selectedModel)
   const selectedProvider = useModelProvider((state) => state.selectedProvider)
+  const supportsReasoning =
+    selectedModel?.capabilities?.includes('reasoning') ?? false
+  const reasoningEnabled = useReasoningSetting((state) =>
+    state.getReasoningEnabled(selectedModel?.id, supportsReasoning)
+  )
+  const setReasoningEnabled = useReasoningSetting(
+    (state) => state.setReasoningEnabled
+  )
   const sendMessage = useChat()
   const [message, setMessage] = useState('')
   const [dropdownToolsAvailable, setDropdownToolsAvailable] = useState(false)
@@ -1520,7 +1527,7 @@ const ChatInput = ({
                     </Tooltip>
                   </TooltipProvider>
                 )}
-                {selectedModel?.capabilities?.includes('reasoning') && (
+                {supportsReasoning && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1529,7 +1536,9 @@ const ChatInput = ({
                             'h-7 p-1 flex items-center justify-center rounded-sm hover:bg-main-view-fg/10 transition-all duration-200 ease-in-out gap-1 cursor-pointer',
                             reasoningEnabled && 'bg-accent/10'
                           )}
-                          onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                          onClick={() =>
+                            setReasoningEnabled(selectedModel?.id, !reasoningEnabled)
+                          }
                         >
                           <IconBulb
                             size={18}

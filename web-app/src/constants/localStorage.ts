@@ -12,6 +12,7 @@ export const localStorageKey = {
   settingProxyConfig: 'setting-proxy-config',
   settingHardware: 'setting-hardware',
   settingVulkan: 'setting-vulkan',
+  reasoningByModel: 'reasoning-by-model',
   productAnalyticPrompt: 'productAnalyticPrompt',
   productAnalytic: 'productAnalytic',
   toolApproval: 'tool-approval',

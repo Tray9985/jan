@@ -35,6 +35,7 @@ import { useToolAvailable } from '@/hooks/useToolAvailable'
 import { OUT_OF_CONTEXT_SIZE } from '@/utils/error'
 import { useContextSizeApproval } from './useModelContextApproval'
 import { useModelLoad } from './useModelLoad'
+import { useReasoningSetting } from './useReasoningSetting'
 import {
   ReasoningProcessor,
   extractReasoningFromMessage,
@@ -1068,7 +1069,9 @@ export const useChat = () => {
           } as Record<string, unknown>
           const supportsReasoning =
             selectedModel?.capabilities?.includes('reasoning') ?? false
-          const reasoningEnabled = useAppState.getState().reasoningEnabled
+          const reasoningEnabled = useReasoningSetting
+            .getState()
+            .getReasoningEnabled(selectedModel?.id, supportsReasoning)
           let finalParams: Record<string, unknown> = baseParams
 
           if (supportsReasoning) {

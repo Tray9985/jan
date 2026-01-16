@@ -7,6 +7,7 @@ import { usePrompt } from '@/hooks/usePrompt'
 import { useThreads } from '@/hooks/useThreads'
 import { useAppState } from '@/hooks/useAppState'
 import { useGeneralSetting } from '@/hooks/useGeneralSetting'
+import { useReasoningSetting } from '@/hooks/useReasoningSetting'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { useChat } from '@/hooks/useChat'
 import type { ThreadModel } from '@/types/threads'
@@ -42,12 +43,23 @@ let mockAppState = {
   updateTools: vi.fn(),
   activeModels: [] as string[],
   cancelToolCall: vi.fn(),
-  reasoningEnabled: false,
-  setReasoningEnabled: vi.fn(),
 }
 
 vi.mock('@/hooks/useAppState', () => ({
   useAppState: (selector?: any) => selector ? selector(mockAppState) : mockAppState,
+}))
+
+let mockReasoningSetting = {
+  reasoningByModel: {},
+  getReasoningEnabled: vi.fn((_modelId: string | undefined, defaultEnabled?: boolean) =>
+    defaultEnabled ?? false
+  ),
+  setReasoningEnabled: vi.fn(),
+}
+
+vi.mock('@/hooks/useReasoningSetting', () => ({
+  useReasoningSetting: (selector?: any) =>
+    selector ? selector(mockReasoningSetting) : mockReasoningSetting,
 }))
 
 vi.mock('@/hooks/useGeneralSetting', () => ({
