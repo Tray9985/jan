@@ -26,6 +26,21 @@ interface MarkdownProps {
 
 // Cache for normalized LaTeX content
 const latexCache = new Map<string, string>()
+const WORD_JOINER = '\u2060'
+const CJK_LEFT_PUNCT =
+  '\u201c\u2018\u300a\u300c\u300e\u3010\u3014\uFF08'
+const CJK_RIGHT_PUNCT =
+  '\u201d\u2019\u300b\u300d\u300f\u3011\u3015\uFF09'
+const escapeForCharClass = (input: string) =>
+  input.replace(/[\\\]\^-]/g, '\\$&')
+const CJK_LEFT_PUNCT_REGEX = new RegExp(
+  `\\*\\*([${escapeForCharClass(CJK_LEFT_PUNCT)}])`,
+  'g'
+)
+const CJK_RIGHT_PUNCT_REGEX = new RegExp(
+  `([${escapeForCharClass(CJK_RIGHT_PUNCT)}])\\*\\*`,
+  'g'
+)
 
 /**
  * Optimized preprocessor: normalize LaTeX fragments into $ / $$.
@@ -61,6 +76,10 @@ const normalizeLatex = (input: string): string => {
         /(^|[^$\\])\\\((.+?)\\\)(?=[^$\\]|$)/g,
         (_, pre, inner) => `${pre}$${inner.trim()}$`
       )
+
+      // --- Fix emphasis boundaries around CJK punctuation (e.g. **“text”**)
+      s = s.replace(CJK_LEFT_PUNCT_REGEX, `**${WORD_JOINER}$1`)
+      s = s.replace(CJK_RIGHT_PUNCT_REGEX, `$1${WORD_JOINER}**`)
 
       // --- Escape $<number> to prevent Markdown from treating it as LaTeX
       // Example: "$1" → "\$1"

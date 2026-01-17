@@ -64,6 +64,17 @@ describe('RenderMarkdown', () => {
     expect(paragraphCount).toBe(3) // Expect 3 paragraphs for 2 empty lines
   })
 
+  describe('Emphasis normalization - CJK punctuation', () => {
+    it('renders bold text when CJK quotes touch ** delimiters', () => {
+      const content = `2011 **\u201cSiemens\u201d** event`
+      render(<RenderMarkdown content={content} />)
+      const markdownContainer = document.querySelector('.markdown')
+      const strong = markdownContainer?.querySelector('strong')
+      expect(strong).toBeTruthy()
+      expect(strong?.textContent).toContain('Siemens')
+    })
+  })
+
   describe('LaTeX normalization - dollar sign escaping', () => {
     it('escapes dollar signs followed by numbers to prevent LaTeX interpretation', () => {
       const content = 'The price is $200 for the item'
@@ -164,4 +175,3 @@ describe('RenderMarkdown', () => {
     })
   })
 })
-

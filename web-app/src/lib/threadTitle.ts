@@ -10,11 +10,10 @@ const THREAD_TITLE_PROMPT = `通过聊天记录创建一个具体且简洁的标
 1. 标题要具体反映讨论的话题、目标或主题。
 2. 标题字数限制在15字以内，不宜过长！
 3. 避免使用引号或特殊格式。
-4. 开头必须有emoji，emoji 取决于聊天主题内容或具体某一元素
 
 ## 标题格式
 
-emoji + 空格 + 标题描述`
+标题描述`
 
 export const generateThreadTitle = async ({
   thread,
