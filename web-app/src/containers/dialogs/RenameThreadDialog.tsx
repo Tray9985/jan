@@ -11,9 +11,11 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { IconEdit } from '@tabler/icons-react'
+import { IconEdit, IconSparkles, IconLoader2 } from '@tabler/icons-react'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
+import { useMessages } from '@/hooks/useMessages'
+import { generateThreadTitle, buildTranscriptFromMessages } from '@/lib/thread-title-summarizer'
 
 interface RenameThreadDialogProps {
   thread: Thread
@@ -37,7 +39,9 @@ export function RenameThreadDialog({
   const { t } = useTranslation()
   const [title, setTitle] = useState('')
   const [internalOpen, setInternalOpen] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const isControlled = open !== undefined
   const isOpen = isControlled ? !!open : internalOpen
@@ -85,6 +89,47 @@ export function RenameThreadDialog({
     }
   }
 
+  // AI 自动生成标题
+  const handleAiRename = async () => {
+    try {
+      setAiLoading(true)
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+
+      const messages = useMessages.getState().getMessages(thread.id)
+      const transcript = buildTranscriptFromMessages(messages)
+      if (!transcript) return
+
+      const newTitle = await generateThreadTitle(transcript, controller.signal)
+      if (!newTitle) return
+
+      onRename(thread.id, newTitle)
+      setOpenSafe(false)
+      onDropdownClose?.()
+      toast.success(t('common:toast.renameThread.title'), {
+        id: 'rename-thread-via-ai',
+        description: t('common:toast.renameThread.description', {
+          title: newTitle,
+        }),
+      })
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') return
+      console.error('AI rename failed:', error)
+    } finally {
+      setAiLoading(false)
+      abortRef.current = null
+    }
+  }
+
+  // 弹窗关闭时取消进行中的 AI 请求
+  useEffect(() => {
+    if (!isOpen) {
+      abortRef.current?.abort()
+      setAiLoading(false)
+    }
+  }, [isOpen])
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {!withoutTrigger && (
@@ -98,15 +143,31 @@ export function RenameThreadDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('common:threadTitle')}</DialogTitle>
-          <Input
-            ref={inputRef}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="mt-2"
-            onKeyDown={handleKeyDown}
-            placeholder={t('common:threadTitle')}
-            aria-label={t('common:threadTitle')}
-          />
+          <div className="relative mt-2">
+            <Input
+              ref={inputRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="pr-8"
+              onKeyDown={handleKeyDown}
+              placeholder={t('common:threadTitle')}
+              aria-label={t('common:threadTitle')}
+            />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-7"
+              disabled={aiLoading}
+              onClick={handleAiRename}
+              aria-label="AI rename"
+            >
+              {aiLoading ? (
+                <IconLoader2 size={16} className="animate-spin" />
+              ) : (
+                <IconSparkles size={16} />
+              )}
+            </Button>
+          </div>
           <DialogFooter className="mt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
             <DialogClose asChild>
               <Button variant="ghost" size="sm" className="w-full sm:w-auto">

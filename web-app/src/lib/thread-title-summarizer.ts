@@ -3,14 +3,41 @@ import { ModelFactory } from './model-factory'
 import { useModelProvider } from '@/hooks/useModelProvider'
 
 const MAX_TITLE_WORDS = 10
+const MAX_TITLE_CHARS = 10
 const MAX_PROMPT_LENGTH = 1500
+const TRANSCRIPT_MAX_TURNS = 8
 
-function buildSummarizePrompt(transcript: string): string {
+/**
+ * 从消息列表构建标题生成用的 transcript
+ */
+export function buildTranscriptFromMessages(
+  messages: Array<{ role: string; content?: Array<{ text?: { value?: string } }> | string }>,
+  maxTurns: number = TRANSCRIPT_MAX_TURNS
+): string {
+  return messages
+    .slice(-maxTurns)
+    .map((m) => {
+      const text =
+        typeof m.content === 'string'
+          ? m.content
+          : (m.content ?? [])
+              .map((c) => c?.text?.value ?? '')
+              .join('')
+              .trim()
+      if (!text) return ''
+      const role = m.role === 'assistant' ? 'Assistant' : 'User'
+      return `${role}: ${text}`
+    })
+    .filter(Boolean)
+    .join('\n\n')
+}
+
+export function buildSummarizePrompt(transcript: string): string {
   const truncated =
     transcript.length > MAX_PROMPT_LENGTH
       ? transcript.slice(0, MAX_PROMPT_LENGTH) + '...'
       : transcript
-  return `Summarize the following conversation into a concise title of at most ${MAX_TITLE_WORDS} words. Capture the overall topic, not just the latest turn. Output the title only, no quotes, no explanation.\n\nConversation:\n${truncated}`
+  return `Summarize the following conversation into a concise title of at most ${MAX_TITLE_WORDS} words, or ${MAX_TITLE_CHARS} characters for Chinese/Japanese/Korean. Capture the overall topic, not just the latest turn. Output the title only, no quotes, no explanation.\n\nConversation:\n${truncated}`
 }
 
 /**
@@ -44,10 +71,6 @@ export function cleanTitle(raw: string): string | null {
   // Keep only letters, numbers, and spaces (unicode-aware)
   text = text.replace(/[^\p{L}\p{N}\s]/gu, '').trim()
 
-  // Enforce word limit
-  const words = text.split(/\s+/).slice(0, MAX_TITLE_WORDS)
-  text = words.join(' ')
-
   if (!text || text.length < 2) return null
 
   return text
@@ -65,21 +88,14 @@ export async function generateThreadTitle(
   try {
     const { selectedModel, selectedProvider, getProviderByName } =
       useModelProvider.getState()
-    if (!selectedModel || !selectedProvider) {
-      console.warn('[ThreadTitle] No model/provider selected')
-      return null
-    }
+    if (!selectedModel || !selectedProvider) return null
 
-    // MLX models often emit reasoning that can't be reliably suppressed; fall back to default title.
+    // MLX models often emit reasoning that can't be reliably suppressed
     if (selectedProvider === 'mlx') return null
 
     const provider = getProviderByName(selectedProvider)
-    if (!provider) {
-      console.warn('[ThreadTitle] Provider not found:', selectedProvider)
-      return null
-    }
+    if (!provider) return null
 
-    console.log('[ThreadTitle] Creating model:', selectedModel.id, 'provider:', selectedProvider)
     const params: Record<string, unknown> =
       selectedProvider === 'llamacpp'
         ? { chat_template_kwargs: { enable_thinking: false } }
@@ -90,20 +106,20 @@ export async function generateThreadTitle(
       params
     )
 
-    console.log('[ThreadTitle] Calling generateText...')
     const { text } = await generateText({
       model,
       messages: [{ role: 'user', content: buildSummarizePrompt(transcript) }],
       maxOutputTokens: 128,
       abortSignal,
+      providerOptions: {
+        [selectedProvider]: {
+          thinking: { type: 'disabled' },
+        },
+      } as any,
     })
 
-    console.log('[ThreadTitle] Raw response:', JSON.stringify(text))
-    const cleaned = cleanTitle(text)
-    console.log('[ThreadTitle] Cleaned title:', cleaned)
-    return cleaned
+    return cleanTitle(text)
   } catch (error) {
-    // Silently swallow abort errors — this is expected when the user sends a new message
     if ((error as Error).name === 'AbortError') return null
     console.error('[ThreadTitle] Failed to generate title:', error)
     return null

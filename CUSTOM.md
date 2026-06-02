@@ -81,6 +81,10 @@ Token 计数器不再限制为 llamacpp 专属。远程 API 模型也显示，�
 
 ---
 
+## 自动检查更新
+
+默认关闭。上游开启，定制版改为 `autoUpdateCheck: false`。
+
 ## 构建
 
 ### ARM-only 构建

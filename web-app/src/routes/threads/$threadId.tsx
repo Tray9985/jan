@@ -57,7 +57,7 @@ import { ExtensionTypeEnum, VectorDBExtension } from '@janhq/core'
 import { ExtensionManager } from '@/lib/extension'
 import { Shimmer } from '@/components/ai-elements/shimmer'
 import { useMessageQueue } from '@/stores/message-queue-store'
-import { generateThreadTitle } from '@/lib/thread-title-summarizer'
+import { generateThreadTitle, buildTranscriptFromMessages } from '@/lib/thread-title-summarizer'
 import { useAutoScroll } from '@/hooks/useAutoScroll'
 
 const CHAT_STATUS = {
@@ -415,21 +415,8 @@ function ThreadDetail() {
           (assistantCount > 0 &&
             assistantCount % TITLE_REFRESH_EVERY_N_ASSISTANT_MESSAGES === 0)
         if (isRefreshTick) {
-          const TITLE_TRANSCRIPT_MAX_TURNS = 8
-          const recent = localMessages.slice(-TITLE_TRANSCRIPT_MAX_TURNS)
           const inputText =
-            recent
-              .map((m) => {
-                const text = m.content
-                  ?.map((c) => c?.text?.value ?? '')
-                  .join('')
-                  .trim()
-                if (!text) return ''
-                const role = m.role === 'assistant' ? 'Assistant' : 'User'
-                return `${role}: ${text}`
-              })
-              .filter(Boolean)
-              .join('\n\n') ||
+            buildTranscriptFromMessages(localMessages) ||
             useThreads.getState().threads[threadId]?.title
           if (inputText) {
             const provider = useModelProvider.getState().selectedProvider

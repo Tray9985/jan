@@ -90,7 +90,10 @@ export default defineConfig(({ mode }) => {
 
       VERSION: JSON.stringify(packageJson.version),
       BUILD_TIME: JSON.stringify(
-        new Date().toISOString().replace('T', ' ').slice(0, 19)
+        new Date(new Date().getTime() + 8 * 3600 * 1000)
+          .toISOString()
+          .replace('T', ' ')
+          .slice(0, 19)
       ),
 
       POSTHOG_KEY: JSON.stringify(env.POSTHOG_KEY),
