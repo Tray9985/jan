@@ -13,18 +13,27 @@ import {
   IconHeadphones,
 } from '@tabler/icons-react'
 import { Fragment, memo } from 'react'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 interface CapabilitiesProps {
   capabilities: string[]
 }
 
 const Capabilities = memo(function Capabilities({ capabilities }: CapabilitiesProps) {
+  const { t } = useTranslation()
   if (!capabilities.length) return null
 
   // Filter out proactive capability as it's now managed in MCP settings
   const filteredCapabilities = capabilities.filter((capability) => {
     return capability !== 'proactive'
   })
+
+  // 能力标签翻译映射
+  const capabilityLabel = (cap: string): string => {
+    if (cap === 'web_search') return t('common:webSearch')
+    if (cap === 'embeddings') return t('common:embeddingModelTooltip')
+    return t(`common:${cap}`, { defaultValue: cap })
+  }
 
   return (
     <div className="flex gap-0.5">
@@ -64,11 +73,7 @@ const Capabilities = memo(function Capabilities({ capabilities }: CapabilitiesPr
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {capability === 'web_search'
-                        ? 'Web Search'
-                        : capability === 'embeddings'
-                          ? 'Embedding Model (for RAG/vectors, not chat)'
-                          : capability}
+                      {capabilityLabel(capability)}
                     </p>
                   </TooltipContent>
                 </Tooltip>

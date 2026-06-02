@@ -21,6 +21,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useSidebarResize } from "@/hooks/use-sidebar-resize";
 import { mergeButtonRefs } from "@/lib/merge-button-refs";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n/react-i18next-compat";
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -359,6 +360,7 @@ const SidebarRail = React.forwardRef<
 >(({ className, enableDrag = true, ...props }, ref) => {
 	const { toggleSidebar, setWidth, state, width, setIsDraggingRail } =
 		useSidebar();
+	const { t } = useTranslation();
 
 	const { dragRef, handleMouseDown } = useSidebarResize({
 		direction: "right",
@@ -385,12 +387,12 @@ const SidebarRail = React.forwardRef<
 			//* updated ref to use combinedRef
 			ref={combinedRef}
 			data-sidebar="rail"
-			aria-label="Toggle Sidebar"
-			tabIndex={-1}
-			// onClick={toggleSidebar}
-			//* replace onClick with onMouseDown
-			onMouseDown={handleMouseDown}
-			title="Toggle Sidebar"
+		aria-label={t('common:toggleSidebar')}
+		tabIndex={-1}
+		// onClick={toggleSidebar}
+		//* replace onClick with onMouseDown
+		onMouseDown={handleMouseDown}
+		title={t('common:toggleSidebar')}
 			className={cn(
 				"absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 hover:after:bg-sidebar group-data-[side=left]:-right-4 group-data-[side=right]:left-0 sm:flex",
 				// Cursor styles for resize

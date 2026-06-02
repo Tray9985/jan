@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 type Format = 'markdown' | 'csv'
 
@@ -62,6 +63,7 @@ export function MarkdownTable({
 }: HTMLAttributes<HTMLTableElement>) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState(false)
+  const { t } = useTranslation()
 
   const withTable = useCallback(
     (fn: (rows: string[][]) => void) => {
@@ -113,8 +115,8 @@ export function MarkdownTable({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              title="Export table"
-              aria-label="Export table"
+              title={t('common:exportTable')}
+              aria-label={t('common:exportTable')}
               className="inline-flex items-center gap-1 rounded-md p-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
             >
               {copied ? <Check size={14} /> : <Download size={14} />}

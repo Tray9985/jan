@@ -89,6 +89,9 @@ export default defineConfig(({ mode }) => {
       PLATFORM: JSON.stringify(process.env.TAURI_ENV_PLATFORM),
 
       VERSION: JSON.stringify(packageJson.version),
+      BUILD_TIME: JSON.stringify(
+        new Date().toISOString().replace('T', ' ').slice(0, 19)
+      ),
 
       POSTHOG_KEY: JSON.stringify(env.POSTHOG_KEY),
       POSTHOG_HOST: JSON.stringify(env.POSTHOG_HOST),

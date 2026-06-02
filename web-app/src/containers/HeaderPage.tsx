@@ -1,5 +1,6 @@
 import { useLeftPanel } from '@/hooks/useLeftPanel'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import {
   IconLayoutSidebar,
 } from '@tabler/icons-react'
@@ -12,6 +13,7 @@ type HeaderPageProps = {
 }
 const HeaderPage = memo(function HeaderPage({ children }: HeaderPageProps) {
   const { open, setLeftPanel } = useLeftPanel()
+  const { t } = useTranslation()
 
   return (
     <div
@@ -34,7 +36,7 @@ const HeaderPage = memo(function HeaderPage({ children }: HeaderPageProps) {
               size="icon-sm"
               className='rounded-full relative z-50'
               onClick={() => setLeftPanel(!open)}
-              aria-label="Toggle sidebar"
+              aria-label={t('common:toggleSidebar')}
             >
               <IconLayoutSidebar
                 className="text-muted-foreground relative size-4.5"

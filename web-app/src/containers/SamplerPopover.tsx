@@ -34,6 +34,7 @@ import { useModelProvider } from '@/hooks/useModelProvider'
 import { paramsSettings, type ParamDef } from '@/lib/predefinedParams'
 import { isPredefinedRemoteProvider } from '@/lib/providerCaps'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 interface SamplerPopoverProps {
   /** Provider ID of the currently-selected model, if any. Used to scope the
@@ -62,6 +63,7 @@ export function SamplerPopover({
   const updateAssistant = useAssistant((s) => s.updateAssistant)
   const assistantsLoading = useAssistant((s) => s.loading)
   const providers = useModelProvider((s) => s.providers)
+  const { t } = useTranslation()
 
   const scopedProviders = useMemo(() => {
     if (providerId) {
@@ -165,7 +167,7 @@ export function SamplerPopover({
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label="Sampling parameters"
+              aria-label={t('common:samplingParameters')}
               className="relative"
               disabled={assistantsLoading}
             >
@@ -256,6 +258,7 @@ function AssistantHeader({
   currentAssistant,
   assistantSwitcher,
 }: AssistantHeaderProps) {
+  const { t } = useTranslation()
   const label = (
     <span className="flex items-center gap-1.5 min-w-0">
       {currentAssistant?.avatar ? (
@@ -268,7 +271,7 @@ function AssistantHeader({
         <IconUser size={14} className="text-muted-foreground" />
       )}
       <span className="text-sm font-medium truncate">
-        {currentAssistant?.name ?? 'No assistant'}
+        {currentAssistant?.name ?? t('common:noAssistant')}
       </span>
     </span>
   )

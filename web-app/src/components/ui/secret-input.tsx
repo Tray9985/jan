@@ -7,6 +7,7 @@ import {
   IconEyeOff,
 } from '@tabler/icons-react'
 import { useState } from 'react'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 type SecretInputProps = Omit<
   React.ComponentProps<typeof Input>,
@@ -16,6 +17,7 @@ type SecretInputProps = Omit<
 export function SecretInput({ className, value, ...props }: SecretInputProps) {
   const [revealed, setRevealed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const { t } = useTranslation()
 
   const stringValue = typeof value === 'string' ? value : String(value ?? '')
 
@@ -47,7 +49,7 @@ export function SecretInput({ className, value, ...props }: SecretInputProps) {
         <button
           type="button"
           tabIndex={-1}
-          aria-label="Copy"
+          aria-label={t('common:copy')}
           disabled={!stringValue}
           className="p-1 rounded text-muted-foreground hover:bg-secondary/50 disabled:opacity-40 disabled:pointer-events-none"
           onClick={handleCopy}

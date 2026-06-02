@@ -314,7 +314,7 @@ const ChatInput = memo(function ChatInput({
       return
     }
     if (ingestingAny) {
-      toast.info('Please wait for attachments to finish processing')
+      toast.info(t('chat:attachmentsProcessing'))
       return
     }
 
@@ -613,7 +613,7 @@ const ChatInput = memo(function ChatInput({
   const handleAttachDocsIngest = async () => {
     try {
       if (!attachmentsEnabled) {
-        toast.info('Attachments are disabled in Settings')
+        toast.info(t('chat:attachmentsDisabled'))
         return
       }
       const selection = await serviceHub.dialog().open({
@@ -802,8 +802,8 @@ const ChatInput = memo(function ChatInput({
           (att) => typeof att.size === 'number' && att.size > maxFileSizeBytes
         )
         if (hasOversized) {
-          toast.error('File too large', {
-            description: `One or more files exceed the ${maxFileSizeMB}MB limit`,
+          toast.error(t('chat:fileTooLarge'), {
+            description: t('chat:fileTooLargeDescription', { maxFileSizeMB }),
           })
           return
         }
@@ -836,8 +836,8 @@ const ChatInput = memo(function ChatInput({
       })
 
       if (duplicates.length > 0) {
-        toast.warning('Files already attached', {
-          description: `${duplicates.join(', ')} ${duplicates.length === 1 ? 'is' : 'are'} already in the list`,
+        toast.warning(t('chat:filesAlreadyAttached'), {
+          description: t('chat:filesAlreadyAttachedDescription', { duplicates: duplicates.join(', '), are: duplicates.length === 1 ? 'is' : 'are' }),
         })
       }
 
@@ -847,7 +847,7 @@ const ChatInput = memo(function ChatInput({
     } catch (e) {
       console.error('Failed to attach documents:', e)
       const desc = e instanceof Error ? e.message : JSON.stringify(e)
-      toast.error('Failed to attach documents', { description: desc })
+      toast.error(t('chat:attachDocumentsFailed'), { description: desc })
     }
   }
 
@@ -871,7 +871,7 @@ const ChatInput = memo(function ChatInput({
         }
       } catch (error) {
         console.error('Failed to delete attachment from backend:', error)
-        toast.error('Failed to remove attachment', {
+        toast.error(t('chat:removeAttachmentFailed'), {
           description: error instanceof Error ? error.message : String(error),
         })
         return
@@ -1053,7 +1053,7 @@ const ChatInput = memo(function ChatInput({
               setAttachmentsForThread(attachmentsKey, (prev) =>
                 prev.filter((a) => !matchImg(a))
               )
-              toast.error(`Failed to ingest ${img.name}`, {
+              toast.error(t('chat:ingestImageFailed', { name: img.name }), {
                 description:
                   error instanceof Error ? error.message : String(error),
               })
@@ -1072,8 +1072,8 @@ const ChatInput = memo(function ChatInput({
 
     // Display validation errors
     if (duplicates.length > 0) {
-      toast.warning('Some images already attached', {
-        description: `${duplicates.join(', ')} ${duplicates.length === 1 ? 'is' : 'are'} already in the list`,
+      toast.warning(t('chat:imagesAlreadyAttached'), {
+        description: t('chat:imagesAlreadyAttachedDescription', { duplicates: duplicates.join(', '), are: duplicates.length === 1 ? 'is' : 'are' }),
       })
     }
 
@@ -1199,8 +1199,8 @@ const ChatInput = memo(function ChatInput({
       }
 
       if (duplicates.length > 0) {
-        toast.warning('Some audio files already attached', {
-          description: `${duplicates.join(', ')} ${duplicates.length === 1 ? 'is' : 'are'} already in the list`,
+        toast.warning(t('chat:audioAlreadyAttached'), {
+          description: t('chat:audioAlreadyAttachedDescription', { duplicates: duplicates.join(', '), are: duplicates.length === 1 ? 'is' : 'are' }),
         })
       }
       const errors: string[] = []
@@ -1254,7 +1254,7 @@ const ChatInput = memo(function ChatInput({
               files.push(new File([blob], fileName, { type: mimeType }))
             } catch (error) {
               console.error('Failed to read audio file:', error)
-              toast.error('Failed to read audio file', {
+              toast.error(t('chat:readAudioFailed'), {
                 description: error instanceof Error ? error.message : String(error),
               })
             }
@@ -1315,7 +1315,7 @@ const ChatInput = memo(function ChatInput({
               files.push(file)
             } catch (error) {
               console.error('Failed to read file:', error)
-              toast.error('Failed to read file', {
+              toast.error(t('chat:readFileFailed'), {
                 description:
                   error instanceof Error ? error.message : String(error),
               })

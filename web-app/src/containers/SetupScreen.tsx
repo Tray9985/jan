@@ -415,19 +415,19 @@ function SetupScreen() {
           <div className="shrink-0 px-10 w-[480px] mx-auto overflow-auto pb-10 pointer-events-auto -mt-20">
             <div className="mb-4">
               <h1 className="font-studio font-medium text-2xl mb-1">
-                {isDownloading ?  'Sit tight, Jan is getting ready...' : 'Hey, welcome to Jan!'}
+                {isDownloading ?  t('setup:gettingReady') : t('setup:welcome')}
               </h1>
-              <p className='text-muted-foreground leading-normal w-full mt-1'>{isDownloading ? 'This may take a few minutes.' : 'Jan needs a model to begin. Let’s set it up.'}</p>
+              <p className='text-muted-foreground leading-normal w-full mt-1'>{isDownloading ? t('setup:mayTakeMinutes') : t('setup:needsModel')}</p>
             </div>
             <div className="flex gap-4 flex-col mt-6 relative z-50">
               <div
                 className="w-full text-left"
               >
-                <span className='mb-2 block text-sm font-medium'>Recommended model</span>
+                <span className='mb-2 block text-sm font-medium'>{t('setup:recommendedModel')}</span>
                 <div className={cn("bg-secondary/50 p-3 rounded-lg border transition-all hover:shadow disabled:opacity-60 flex justify-between items-start")}>
                   <div className="flex w-full items-start gap-4">
                     <div className="shrink-0 size-12 bg-background rounded-xl flex items-center justify-center">
-                      <img src="/images/jan-logo.png" alt="Jan Logo" className='size-6' />
+                      <img src="/images/jan-logo.png" alt={t('setup:janLogo')} className='size-6' />
                     </div>
                     <div className="flex flex-col w-full h-full justify-center">
                       <div className="flex flex-1 items-center justify-between">
@@ -476,11 +476,11 @@ function SetupScreen() {
                       <div className="text-muted-foreground text-sm mt-1.5 ">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-secondary text-xs rounded-full mr-1">
                           <IconSquareCheck size={12} />
-                          General
+                          {t('setup:general')}
                         </span>
                         {(janNewModel?.mmproj_models?.length ?? 0) > 0 && <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-secondary text-xs rounded-full">
                           <IconEye size={12} />
-                          Multimodal
+                          {t('setup:multimodal')}
                         </span>}
                       </div>
                     </div>
@@ -488,7 +488,7 @@ function SetupScreen() {
                 </div>
                 <div className="flex flex-col relative z-50 items-start gap-2 mt-4">
                   <Button size="sm" disabled={isDownloading}  onClick={handleQuickStart} className='flex items-center gap-2 w-full'>
-                    {isDownloading ? 'Downloading' : 'Download'}
+                    {isDownloading ? t('common:downloading') : t('common:download')}
                   </Button>
                 </div>
               </div>

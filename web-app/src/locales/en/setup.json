@@ -9,5 +9,12 @@
   "downloadingDescription": "Please wait while we download the model. This may take a few minutes.",
   "orDivider": "or",
   "localModel": "Set up local model",
-  "remoteProvider": "Set up remote provider"
+  "remoteProvider": "Set up remote provider",
+  "gettingReady": "Sit tight, Jan is getting ready...",
+  "mayTakeMinutes": "This may take a few minutes.",
+  "needsModel": "Jan needs a model to begin...",
+  "recommendedModel": "Recommended model",
+  "janLogo": "Jan Logo",
+  "general": "General",
+  "multimodal": "Multimodal"
 }

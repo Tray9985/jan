@@ -442,7 +442,7 @@ function MtpPanel({
           <NumberRow
             label={t('common:modelSettings.mtp.nMax')}
             description={t('common:modelSettings.mtp.nMaxDescription')}
-            placeholder="16"
+            placeholder={t('common:default')}
             value={info.spec_draft_n_max}
             min={1}
             step={1}
@@ -451,7 +451,7 @@ function MtpPanel({
           <NumberRow
             label={t('common:modelSettings.mtp.nMin')}
             description={t('common:modelSettings.mtp.nMinDescription')}
-            placeholder="0"
+            placeholder={t('common:default')}
             value={info.spec_draft_n_min}
             min={0}
             step={1}
@@ -460,7 +460,7 @@ function MtpPanel({
           <NumberRow
             label={t('common:modelSettings.mtp.pMin')}
             description={t('common:modelSettings.mtp.pMinDescription')}
-            placeholder="0.75"
+            placeholder={t('common:default')}
             value={info.spec_draft_p_min}
             min={0}
             max={1}

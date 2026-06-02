@@ -1,6 +1,7 @@
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { AvatarEmoji } from '@/containers/AvatarEmoji'
 import { IconUser } from '@tabler/icons-react'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 type AssistantMenuProps = {
   selectedAssistant: string | undefined
@@ -17,6 +18,7 @@ export function AssistantsMenu({
   updateCurrentThreadAssistant,
   assistants,
 }: AssistantMenuProps) {
+  const { t } = useTranslation()
   const threadAssistant = currentThread?.assistants?.[0]
   const deletedAssistant =
     threadAssistant &&
@@ -100,7 +102,7 @@ export function AssistantsMenu({
         })
       ) : (
         <DropdownMenuItem disabled>
-          <span className="text-muted-foreground">No assistants available</span>
+          <span className="text-muted-foreground">{t('common:noAssistantsAvailable')}</span>
         </DropdownMenuItem>
       )}
     </>

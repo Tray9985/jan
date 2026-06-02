@@ -8,5 +8,15 @@
   },
   "sendMessage": "Send Message",
   "newConversation": "New Conversation",
-  "clearHistory": "Clear History"
+  "clearHistory": "Clear History",
+  "attachmentsProcessing": "Please wait for attachments to finish processing",
+  "attachmentsDisabled": "Attachments are disabled in Settings",
+  "fileTooLarge": "File too large",
+  "filesAlreadyAttached": "Files already attached",
+  "attachDocumentsFailed": "Failed to attach documents",
+  "removeAttachmentFailed": "Failed to remove attachment",
+  "imagesAlreadyAttached": "Some images already attached",
+  "audioAlreadyAttached": "Some audio files already attached",
+  "readAudioFailed": "Failed to read audio file",
+  "readFileFailed": "Failed to read file"
 }

@@ -40,6 +40,7 @@ import { parseCitationsFromToolOutput } from '@/lib/citation-parser'
 import type { RagCitation } from '@/components/Citations'
 import { useGroundingStore } from '@/stores/grounding-store'
 import { injectCitationMarkers } from '@/lib/grounding'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 const CHAT_STATUS = {
   STREAMING: 'streaming',
@@ -89,6 +90,7 @@ export const MessageItem = memo(
     const selectedModel = useModelProvider((state) => state.selectedModel)
     const metadata = message.metadata as Record<string, unknown> | undefined
     const messageError = useMessageErrors((s) => s.errors[message.id])
+    const { t } = useTranslation()
     const createdAt = (metadata?.createdAt as Date) ?? new Date()
     const [previewImage, setPreviewImage] = useState<{
       url: string
@@ -643,7 +645,7 @@ export const MessageItem = memo(
                     variant="ghost"
                     size="icon-xs"
                     onClick={handleRegenerate}
-                    title="Regenerate response"
+                    title={t('common:regenerateResponse')}
                   >
                     <IconRefresh size={16} />
                   </Button>

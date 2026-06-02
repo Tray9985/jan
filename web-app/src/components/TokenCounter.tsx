@@ -20,6 +20,7 @@ import {
   IconMoon,
   IconAdjustmentsAlt,
 } from '@tabler/icons-react'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 interface TokenCounterProps {
   messages?: ThreadMessage[]
@@ -45,6 +46,7 @@ export const TokenCounter = memo(function TokenCounter({
   additionalTokens = 0,
 }: TokenCounterProps) {
   const { calculateTokens, ...tokenData } = useTokensCount(messages)
+  const { t } = useTranslation()
 
   const [isAnimating, setIsAnimating] = useState(false)
   const [prevTokenCount, setPrevTokenCount] = useState(0)
@@ -208,7 +210,7 @@ export const TokenCounter = memo(function TokenCounter({
             {modelProps?.isSleeping && (
               <IconMoon
                 className="size-3.5 text-muted-foreground"
-                aria-label="Model sleeping"
+                aria-label={t('common:modelSleeping')}
               />
             )}
           </div>
@@ -245,26 +247,26 @@ export const TokenCounter = memo(function TokenCounter({
             {typeof inputTokens === 'number' && inputTokens > 0 && (
               <Row
                 icon={<IconArrowUp className="size-3.5" />}
-                label="Prompt"
+                label={t('common:prompt')}
                 value={formatExact(inputTokens)}
               />
             )}
             {typeof outputTokens === 'number' && outputTokens > 0 && (
               <Row
                 icon={<IconArrowDown className="size-3.5" />}
-                label="Completion"
+                label={t('common:completion')}
                 value={formatExact(outputTokens)}
               />
             )}
             <Row
               icon={<IconSum className="size-3.5" />}
-              label="Used"
+              label={t('common:used')}
               value={formatExact(totalTokens)}
               strong
             />
             <Row
               icon={<IconRulerMeasure className="size-3.5" />}
-              label="Remaining"
+              label={t('common:remaining')}
               value={formatExact(remaining)}
             />
           </div>
@@ -291,7 +293,7 @@ export const TokenCounter = memo(function TokenCounter({
               {tokenData.modalities?.vision && (
                 <span
                   className="flex items-center gap-1"
-                  title="Vision input supported"
+                  title={t('common:visionInputSupported')}
                 >
                   <IconPhoto className="size-3" />
                   Vision
@@ -300,7 +302,7 @@ export const TokenCounter = memo(function TokenCounter({
               {tokenData.modalities?.audio && (
                 <span
                   className="flex items-center gap-1"
-                  title="Audio input supported"
+                  title={t('common:audioInputSupported')}
                 >
                   <IconMicrophone className="size-3" />
                   Audio

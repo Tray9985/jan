@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useServiceHub } from '@/hooks/useServiceHub'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -28,6 +29,7 @@ export const ImportMlxModelDialog = ({
   onSuccess,
 }: ImportMlxModelDialogProps) => {
   const serviceHub = useServiceHub()
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [importing, setImporting] = useState(false)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
@@ -55,19 +57,19 @@ export const ImportMlxModelDialog = ({
 
   const handleImport = async () => {
     if (!selectedPath) {
-      toast.error('Please select a model folder')
+      toast.error(t('providers:pleaseSelectModelFolder'))
       return
     }
 
     if (!modelName) {
-      toast.error('Please enter a model name')
+      toast.error(t('providers:pleaseEnterModelName'))
       return
     }
 
     // Validate model name - only allow alphanumeric, underscore, hyphen, and dot
     //eslint-disable-next-line
     if (!/^[a-zA-Z0-9/_.\-]+$/.test(modelName)) {
-      toast.error('Invalid model name. Only alphanumeric and _ - . characters are allowed.')
+      toast.error(t('providers:invalidModelName'))
       return
     }
 
@@ -77,8 +79,8 @@ export const ImportMlxModelDialog = ({
     )
 
     if (modelExists) {
-      toast.error('Model already exists', {
-        description: `${modelName} already imported`,
+      toast.error(t('providers:modelExists'), {
+        description: t('providers:modelAlreadyImported', { name: modelName }),
       })
       return
     }
@@ -100,8 +102,8 @@ export const ImportMlxModelDialog = ({
       })
       console.log('[MLX Import] Import completed')
 
-      toast.success('Model imported successfully', {
-        description: `${modelName} has been imported`,
+      toast.success(t('providers:modelImported'), {
+        description: t('providers:modelHasBeenImported', { name: modelName }),
       })
 
       // Reset form and close dialog
@@ -111,7 +113,7 @@ export const ImportMlxModelDialog = ({
       onSuccess?.(modelName)
     } catch (error) {
       console.error('[MLX Import] Import model error:', error)
-      toast.error('Failed to import model', {
+      toast.error(t('providers:modelImportFailed'), {
         description:
           error instanceof Error ? error.message : String(error),
       })
@@ -148,12 +150,10 @@ export const ImportMlxModelDialog = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Import MLX Model
+            {t('providers:importMlxModel')}
           </DialogTitle>
           <DialogDescription>
-            Import a local MLX model folder for use with MLX. MLX models are
-            typically downloaded from HuggingFace and contain safetensors files
-            along with config and tokenizer files.
+            {t('providers:importMlxModelDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -161,17 +161,17 @@ export const ImportMlxModelDialog = ({
           {/* Model Name Input */}
           <div className="space-y-2">
             <label className="text-sm font-medium">
-              Model Name
+              {t('providers:modelName')}
             </label>
             <input
               type="text"
               value={modelName}
               onChange={(e) => setModelName(e.target.value)}
-              placeholder="my-mlx-model"
+              placeholder={t('providers:mlxModelPlaceholder')}
               className="w-full px-3 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50"
             />
             <p className="text-xs text-muted-foreground">
-              Only alphanumeric and _ - . characters are allowed
+              {t('providers:modelNameHint')}
             </p>
           </div>
 
@@ -179,10 +179,10 @@ export const ImportMlxModelDialog = ({
           <div className="border rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
               <h3 className="font-medium">
-                Model Folder
+                {t('providers:modelFolder')}
               </h3>
               <span className="text-xs bg-secondary px-2 py-1 rounded-sm">
-                Required
+                {t('common:required')}
               </span>
             </div>
 
@@ -201,7 +201,7 @@ export const ImportMlxModelDialog = ({
                     onClick={handleFileSelect}
                     disabled={importing}
                   >
-                    Change
+                    {t('common:change')}
                   </Button>
                 </div>
               </div>
@@ -213,7 +213,7 @@ export const ImportMlxModelDialog = ({
                 disabled={importing}
                 className="w-full h-12 border border-dashed text-muted-foreground"
               >
-                Select Model Folder
+                {t('providers:selectModelFolder')}
               </Button>
             )}
           </div>
@@ -223,7 +223,7 @@ export const ImportMlxModelDialog = ({
             <div className="rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Model will be saved as:
+                  {t('providers:modelSavedAs')}
                 </span>
               </div>
               <p className="text-sm font-mono mt-1">
@@ -240,7 +240,7 @@ export const ImportMlxModelDialog = ({
             onClick={() => handleOpenChange(false)}
             disabled={importing}
           >
-            Cancel
+            {t('common:cancel')}
           </Button>
           <Button
             onClick={handleImport}
@@ -248,7 +248,7 @@ export const ImportMlxModelDialog = ({
             disabled={importing || !selectedPath || !modelName}
           >
             {importing && <IconLoader2 className="mr-2 size-4 animate-spin" />}
-            {importing ? 'Importing...' : 'Import Model'}
+            {importing ? t('common:importing') : t('providers:importModel')}
           </Button>
         </div>
       </DialogContent>

@@ -31,6 +31,7 @@ import ErrorDialog from '@/containers/dialogs/ErrorDialog'
 import LlamacppBusyOnExitDialog from '@/containers/dialogs/LlamacppBusyOnExitDialog'
 import LlamacppOomListener from '@/containers/dialogs/LlamacppOomListener'
 import MissingDependenciesDialog from '@/containers/dialogs/MissingDependenciesDialog'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -40,6 +41,7 @@ export const Route = createRootRoute({
 const AppLayout = () => {
   const { productAnalyticPrompt } = useAnalytic()
   const { showJanModelPrompt } = useJanModelPrompt()
+  const { t } = useTranslation()
   const {
     open: isLeftPanelOpen,
     setLeftPanel,
@@ -62,8 +64,8 @@ const AppLayout = () => {
         {IS_TAURI && !IS_LINUX && (
           <div
             className="fixed w-full h-12 z-20 top-0 cursor-grab active:cursor-grabbing"
-            title="Drag window"
-            aria-label="Window drag area"
+            title={t('common:dragWindow')}
+            aria-label={t('common:windowDragArea')}
             data-tauri-drag-region
           />
         )}

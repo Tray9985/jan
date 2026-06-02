@@ -1,8 +1,10 @@
 import { Minus, Square, X } from 'lucide-react'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 export const WindowControls = () => {
+  const { t } = useTranslation()
   const appWindow = getCurrentWebviewWindow()
 
   const handleMinimize = async () => {
@@ -22,7 +24,7 @@ export const WindowControls = () => {
       <div className="flex items-center h-full">
         <Button
           onClick={handleMinimize}
-          aria-label="Minimize"
+          aria-label={t('common:minimize')}
           variant="ghost"
           size="icon-sm"
         >
@@ -32,7 +34,7 @@ export const WindowControls = () => {
           onClick={handleMaximize}
           variant="ghost"
           size="icon-sm"
-          aria-label="Maximize"
+          aria-label={t('common:maximize')}
         >
           <Square className="size-3" />
         </Button>
@@ -40,7 +42,7 @@ export const WindowControls = () => {
           onClick={handleClose}
           variant="ghost"
           size="icon-sm"
-          aria-label="Close"
+          aria-label={t('common:close')}
         >
           <X className="size-4" />
         </Button>

@@ -17,6 +17,7 @@ declare global {
   declare const IS_ANDROID: boolean
   declare const PLATFORM: string
   declare const VERSION: string
+  declare const BUILD_TIME: string
   declare const POSTHOG_KEY: string
   declare const POSTHOG_HOST: string
   declare const MODEL_CATALOG_URL: string

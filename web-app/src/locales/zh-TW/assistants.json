@@ -7,7 +7,7 @@
   "cancel": "取消",
   "delete": "刪除",
   "addAssistant": "新增助理",
-  "emoji": "表情符號",
+  "emoji": "錶情符號",
   "name": "名稱",
   "enterName": "輸入名稱",
   "nameRequired": "名稱為必填項",
@@ -31,5 +31,11 @@
   "personality": "個性",
   "capabilities": "能力",
   "instructionsDateHint": "提示：使用 {{current_date}} 插入今天的日期。",
-  "maxToolSteps": "最大工具步驟"
+  "maxToolSteps": "最大工具步驟",
+  "setAsDefault": "設為默認助手",
+  "isDefault": "默認",
+  "defaultAssistantSection": "默認助手",
+  "defaultAssistantDesc": "開始新聊天時使用的助手",
+  "allAssistants": "全部助手",
+  "lastUsed": "上次使用"
 }

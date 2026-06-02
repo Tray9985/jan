@@ -158,7 +158,7 @@ function HardwareContent() {
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
               <div className="text-muted-foreground">
-                Loading hardware information...
+                {t('settings:hardware.loadingHardwareInfo')}
               </div>
             </div>
           ) : (
@@ -294,7 +294,7 @@ function HardwareContent() {
               {/* Llamacpp Devices Information */}
               {!IS_MACOS && llamacpp && (
                 <Card
-                  title="GPUs"
+                  title={t('settings:hardware.gpus')}
                   header={
                     <div className="flex items-center justify-end mb-2">
                       <Button
@@ -303,16 +303,16 @@ function HardwareContent() {
                         onClick={handleRefreshHardware}
                         disabled={isLoading}
                       >
-                        {isLoading ? '...' : 'Refresh'}
+                        {isLoading ? '...' : t('common:refresh')}
                       </Button>
                     </div>
                   }
                 >
                   {llamacppDevicesLoading ? (
-                    <CardItem title="Loading devices..." actions={<></>} />
+                    <CardItem title={t('common:loading')} actions={<></>} />
                   ) : llamacppDevicesError ? (
                     <CardItem
-                      title="Error loading devices"
+                      title={t('settings:hardware.errorLoadingDevices')}
                       actions={
                         <span className="text-destructive text-sm">
                           {llamacppDevicesError}
@@ -368,7 +368,7 @@ function HardwareContent() {
                       </Card>
                     ))
                   ) : (
-                    <CardItem title="No devices found" actions={<></>} />
+                    <CardItem title={t('settings:hardware.noDevicesFound')} actions={<></>} />
                   )}
                 </Card>
               )}

@@ -12,8 +12,10 @@
   "modelProviders": "模型提供商",
   "localProviders": "本地",
   "remoteProviders": "远程",
-  "manageProviders": "Manage providers",
-  "hiddenProviders": "{{count}} disabled",
+  "noAssistant": "无助手",
+  "noAssistantsAvailable": "无可用助手",
+  "manageProviders": "管理提供商",
+  "hiddenProviders": "{{count}} 个已禁用",
   "interface": "外观",
   "appearance": "外观",
   "privacy": "隐私",
@@ -87,7 +89,9 @@
   "completed": "已完成",
   "image": "图片",
   "vision": "视觉",
+  "audio": "音频",
   "embeddings": "嵌入",
+  "embeddingModelTooltip": "嵌入模型（用于 RAG/向量，不用于聊天）",
   "tools": "工具",
   "webSearch": "网页搜索",
   "reasoning": "推理",
@@ -131,7 +135,7 @@
   "changeLanguage": "更改语言",
   "editTheme": "编辑主题",
   "editCodeBlockStyle": "编辑代码块样式",
-  "editServerHost": "编辑服务器主机",
+  "editServerHost": "编辑服务器地址",
   "pickColorWindowBackground": "选择窗口背景颜色",
   "pickColorAppMainView": "选择应用主视图颜色",
   "pickColorAppPrimary": "选择应用主颜色",
@@ -223,7 +227,19 @@
   },
   "modelSettings": {
     "title": "模型设置 - {{modelId}}",
-    "description": "配置模型设置以优化性能和行为。"
+    "description": "配置模型设置以优化性能和行为。",
+    "mtp": {
+      "section": "多 Token 预测 (MTP)",
+      "enable": "启用 MTP",
+      "enableDescription": "使用模型的内置 MTP 头一次生成多个 token。当模型含有 MTP 权重时可加速生成（DeepSeek-V3、GLM-4.5/4.6、MiMo v2.5 等）。",
+      "needsUpgrade": "需要将 llama.cpp 后端更新到 b9193 或更高版本以启用 MTP。",
+      "nMax": "最大草稿 Token 数",
+      "nMaxDescription": "每步最多生成的草稿 token 数。默认 16。",
+      "nMin": "最小草稿 Token 数",
+      "nMinDescription": "每步最少生成的草稿 token 数。默认 0。",
+      "pMin": "最小草稿概率",
+      "pMinDescription": "贪婪采样的最小概率 (0–1)。默认 0.75。"
+    }
   },
   "projects": {
     "title": "项目",
@@ -244,6 +260,15 @@
     "startNewConversation": "在下方开始与 {{projectName}} 的新对话",
     "conversationsIn": "{{projectName}} 中的对话",
     "conversationsDescription": "点击任何对话以继续聊天，或在下方开始新的对话。",
+    "selectAssistant": "选择助手",
+    "noAssistantAssigned": "没有为此项目分配助手",
+    "files": "文件",
+    "filesDescription": "添加 PDF、文档或其他文本作为项目参考资料。",
+    "conversation": "对话",
+    "instructions": "指令",
+    "setup": "设置",
+    "instructionsDescription": "自定义回复的语气和风格",
+    "manageInstructions": "管理指令",
     "thread": "线程",
     "threads": "线程",
     "updated": "已更新：",
@@ -279,7 +304,12 @@
       "updateButton": "更新",
       "alreadyExists": "项目\"{{projectName}}\"已存在",
       "createSuccess": "项目\"{{projectName}}\"创建成功",
-      "renameSuccess": "项目从\"{{oldName}}\"重命名为\"{{newName}}\""
+      "renameSuccess": "项目从\"{{oldName}}\"重命名为\"{{newName}}\"",
+      "assistant": "助手",
+      "selectAssistant": "选择助手（可选）",
+      "noAssistant": "无助手",
+      "addAssistant": "添加助手",
+      "updateSuccess": "项目\"{{projectName}}\"更新成功"
     }
   },
   "dialogs": {
@@ -294,6 +324,10 @@
     "deleteAllThreads": {
       "title": "删除所有会话",
       "description": "所有会话将被删除。此操作无法撤销。"
+    },
+    "deleteAllThreadsInProject": {
+      "title": "删除所有对话",
+      "description": "\"{{projectName}}\" 中的 {{count}} 个对话将被删除。此操作无法撤销。"
     },
     "deleteThread": {
       "description": "您确定要删除此对话吗？此操作无法撤销。"
@@ -397,13 +431,129 @@
     "threadRemovedFromProject": {
       "title": "线程已移除",
       "description": "线程已成功从\"{{projectName}}\"中移除"
+    },
+    "fileUploaded": {
+      "title": "文件已处理",
+      "description": "文件已成功处理并索引"
+    },
+    "uploadFailed": {
+      "title": "处理失败",
+      "description": "处理文件失败",
+      "subjectThisFile": "此文件",
+      "pdfMalformedXref": "{{subject}} 的 PDF 交叉引用表损坏，无法解析。请在 PDF 阅读器中打开并重新保存（文件 → 打印 → 另存为 PDF），然后再次上传。",
+      "pdfScanned": "{{subject}} 似乎是扫描或图片版 PDF。暂不支持 OCR — 请上传文本版 PDF。",
+      "pdfEncrypted": "{{subject}} 受密码保护。请移除密码后重试。",
+      "pdfGeneric": "{{subject}} 无法作为 PDF 解析。文件可能已损坏或使用了不支持的 PDF 特性。",
+      "fileTooLarge": "{{subject}} 过大。{{message}}。",
+      "unsupportedType": "不支持文件类型 \"{{type}}\"。",
+      "ioError": "无法读取 {{subject}}：{{message}}",
+      "parseGeneric": "{{subject}} 无法解析：{{message}}",
+      "fallback": "处理 {{subject}} 失败。"
+    },
+    "fileDeleted": {
+      "title": "文件已删除",
+      "description": "文件已从项目中移除"
+    },
+    "deleteFailed": {
+      "title": "删除失败",
+      "description": "删除文件失败"
+    },
+    "fileAlreadyExists": {
+      "title": "文件已存在",
+      "description": "文件已添加到此项目"
+    },
+    "unsupportedFileType": {
+      "title": "不支持的文件类型",
+      "description": "文件扩展名 \".{{extension}}\" 不支持作为项目参考资料。"
+    },
+    "attachmentsDisabledInfo": {
+      "title": "附件已禁用",
+      "description": "附件功能已在设置中禁用"
     }
   },
   "llamacppBusyOnExit": {
-    "title": "llama.cpp is still busy",
-    "description": "One or more models did not unload in time. Force-quitting will terminate llama.cpp and may interrupt active responses.",
-    "forceQuit": "Force quit",
-    "forcing": "Force quitting…",
-    "shuttingDown": "Shutting down…"
-  }
+    "title": "llama.cpp 仍在运行",
+    "description": "一个或多个模型未能及时卸载。强制退出将终止 llama.cpp 并可能中断正在进行的响应。",
+    "forceQuit": "强制退出",
+    "forcing": "正在强制退出…",
+    "shuttingDown": "正在关闭…"
+  },
+  "remote_access": "远程访问",
+  "integrations": "集成",
+  "claude_code": "Claude Code",
+  "hideProvider": "隐藏提供商",
+  "showProvider": "显示提供商",
+  "searchThreads": "搜索会话...",
+  "toNavigate": "导航",
+  "toSelect": "选择",
+  "toClose": "关闭",
+  "clearRecent": "清除",
+  "dismiss": "忽略",
+  "multimodal": "多模态",
+  "settingUpJan": "正在启动 Jan…",
+  "registeringExtensions": "正在注册扩展…",
+  "loadingExtensions": "正在加载扩展… ({{done}}/{{total}})",
+  "continueAiResponse": "继续 AI 响应",
+  "missingDependenciesDialog": {
+    "title": "缺少系统库",
+    "description": "{{backend}} 已安装，但部分必需的系统库未找到。可能回退到 CPU 或无法正常运行。",
+    "installLabel": "请安装以下内容以修复：",
+    "download": "下载",
+    "additionalLibraries": "其他缺失的库：",
+    "missingLibraries": "缺失的库：",
+    "showRawLibraries": "显示 {{count}} 个缺失的库名称"
+  },
+  "attachmentsIngestion": {
+    "title": "选择附件摄取方式",
+    "description": "选择是直接将文件包含在聊天中，还是将其作为嵌入索引。",
+    "inline": "注入到聊天中",
+    "embeddings": "使用嵌入"
+  },
+  "attachmentInjectedIndicator": "已注入到聊天",
+  "attachmentEmbeddedIndicator": "已嵌入用于 RAG",
+  "viewInjectedContent": "查看注入内容",
+  "injectedContentTitle": "注入的文件内容",
+  "errors": {
+    "fileTooLarge": "文件过大",
+    "fileTooLargeDescription": "{{fileName}} 超过了 {{maxFileSizeMB}}MB 的限制"
+  },
+  "files": {
+    "chunksCount": "{{count}} 个分块"
+  },
+  "toggleSidebar": "切换侧边栏",
+  "toggleFavorite": "切换收藏",
+  "tokenSpeedDetails": "Token 速度详情",
+  "samplingParameters": "采样参数",
+  "regenerateResponse": "重新生成响应",
+  "resumeDownload": "恢复下载",
+  "pauseDownload": "暂停下载",
+  "clickToEdit": "点击编辑",
+  "toggleSnippet": "切换代码片段",
+  "exportTable": "导出表格",
+  "dragWindow": "拖动窗口",
+  "windowDragArea": "窗口拖动区域",
+  "refreshModels": "刷新模型",
+  "goBack": "返回",
+  "minimize": "最小化",
+  "maximize": "最大化",
+  "download": "下载",
+  "required": "必填",
+  "yes": "是",
+  "no": "否",
+  "generating": "生成中…",
+  "importing": "导入中…",
+  "setting": "设置中…",
+  "saving": "保存中…",
+  "saveChanges": "保存更改",
+  "default": "默认",
+  "completion": "输出",
+  "prompt": "输入",
+  "remaining": "剩余",
+  "used": "已用",
+  "startingServer": "正在启动服务…",
+  "unknownError": "发生未知错误",
+  "deleteMessageConfirm": "确定要删除这条消息？此操作无法撤销。",
+  "modelSleeping": "模型休眠中",
+  "visionInputSupported": "支持图像输入",
+  "audioInputSupported": "支持音频输入"
 }

@@ -69,5 +69,13 @@
     "routerModelSearchPlaceholder": "搜索模型…",
     "routerModelEmptyList": "没有可用的轻量模型。请添加更小的模型，或在「模型」中配置 API 密钥。",
     "routerModelEmptySearch": "没有与「{{query}}」匹配的结果。"
-  }
+  },
+  "transportType": "传输类型",
+  "headers": "请求头",
+  "timeoutSeconds": "超时（秒）",
+  "enterUrl": "输入 URL",
+  "enterTimeout": "输入超时秒数",
+  "headerName": "Header 名称",
+  "headerValue": "Header 值",
+  "addServerByJson": "通过 JSON 添加服务"
 }

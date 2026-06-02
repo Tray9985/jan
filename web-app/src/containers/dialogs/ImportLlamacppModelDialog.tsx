@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { useServiceHub } from '@/hooks/useServiceHub'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
@@ -65,6 +66,7 @@ export const ImportLlamacppModelDialog = ({
   onSuccess,
 }: ImportLlamacppModelDialogProps) => {
   const serviceHub = useServiceHub()
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [importing, setImporting] = useState(false)
   const [isMultimodal, setIsMultimodal] = useState(false)
@@ -245,17 +247,17 @@ export const ImportLlamacppModelDialog = ({
 
   const handleImport = async () => {
     if (!modelFile) {
-      toast.error('Please select a model file')
+      toast.error(t('providers:pleaseSelectModelFile'))
       return
     }
 
     if (isMultimodal && !mmProjFile) {
-      toast.error('Please select both model and MMPROJ files for multimodal models')
+      toast.error(t('providers:pleaseSelectModelAndMmproj'))
       return
     }
 
     if (!modelName) {
-      toast.error('Unable to determine model name from file')
+      toast.error(t('providers:unableToDetermineModelName'))
       return
     }
 
@@ -265,8 +267,8 @@ export const ImportLlamacppModelDialog = ({
     )
 
     if (modelExists) {
-      toast.error('Model already exists', {
-        description: `${modelName} already imported`,
+      toast.error(t('providers:modelExists'), {
+        description: t('providers:modelAlreadyImported', { name: modelName }),
       })
       return
     }
@@ -289,8 +291,8 @@ export const ImportLlamacppModelDialog = ({
         await serviceHub.models().pullModel(modelName, modelFile)
       }
 
-      toast.success('Model imported successfully', {
-        description: `${modelName} has been imported`,
+      toast.success(t('providers:modelImported'), {
+        description: t('providers:modelHasBeenImported', { name: modelName }),
       })
 
       // Reset form and close dialog
@@ -299,9 +301,9 @@ export const ImportLlamacppModelDialog = ({
       onSuccess?.(modelName)
     } catch (error) {
       console.error('Import model error:', error)
-      toast.error('Failed to import model', {
+      toast.error(t('providers:modelImportFailed'), {
         description:
-          error instanceof Error ? error.message : 'Unknown error occurred',
+          error instanceof Error ? error.message : t('common:unknownError'),
       })
     } finally {
       setImporting(false)
@@ -346,12 +348,10 @@ export const ImportLlamacppModelDialog = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Import Model
+            {t('providers:importModel')}
           </DialogTitle>
           <DialogDescription>
-            Import a GGUF model file to add it to your collection. Enable
-            multimodal support to attach an mmproj for image or audio input.
-            Embedding models are detected automatically.
+            {t('providers:importLlamacppModelDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -362,10 +362,9 @@ export const ImportLlamacppModelDialog = ({
                 <IconSparkles size={20} className="text-muted-foreground" />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium">Multimodal Support</h3>
+                <h3 className="font-medium">{t('providers:multimodalSupport')}</h3>
                 <p className="text-sm text-muted-foreground leading-normal">
-                  Enable if your model uses an mmproj for image or audio input.
-                  Modalities are detected from the projector file.
+                  {t('providers:multimodalSupportDescription')}
                 </p>
               </div>
               <Switch
@@ -391,7 +390,7 @@ export const ImportLlamacppModelDialog = ({
             <div className=" rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Model will be saved as:
+                  {t('providers:modelSavedAs')}
                 </span>
               </div>
               <p className="text-sm font-mono mt-1">
@@ -406,10 +405,10 @@ export const ImportLlamacppModelDialog = ({
             <div className="border  rounded-lg p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <h3 className="font-medium">
-                  Model File (GGUF)
+                  {t('providers:modelFileGguf')}
                 </h3>
                 <span className="text-xs bg-secondary px-2 py-1 rounded-sm">
-                  Required
+                  {t('common:required')}
                 </span>
               </div>
 
@@ -441,7 +440,7 @@ export const ImportLlamacppModelDialog = ({
                         onClick={() => handleFileSelect('model')}
                         disabled={importing || isValidating}
                       >
-                        Change
+                        {t('common:change')}
                       </Button>
                     </div>
                   </div>
@@ -456,7 +455,7 @@ export const ImportLlamacppModelDialog = ({
                         />
                         <div>
                           <p className="text-sm font-medium text-destructive">
-                            Model Validation Error
+                            {t('providers:modelValidationError')}
                           </p>
                           <p className="text-sm text-destructive/90 mt-1">
                             {validationError}
@@ -475,7 +474,7 @@ export const ImportLlamacppModelDialog = ({
                           className="text-blue-500 animate-spin"
                         />
                         <p className="text-sm text-blue-700">
-                          Validating model file...
+                          {t('providers:validatingModelFile')}
                         </p>
                       </div>
                     </div>
@@ -486,11 +485,10 @@ export const ImportLlamacppModelDialog = ({
                       <IconCodeCircle2 size={16} className="mt-0.5 shrink-0" />
                       <div>
                         <p className="text-sm font-medium">
-                          Embedding model detected
+                          {t('providers:embeddingModelDetected')}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          This model will be imported for embeddings only.
-                          Multimodal options are disabled.
+                          {t('providers:embeddingModelDescription')}
                         </p>
                       </div>
                     </div>
@@ -504,7 +502,7 @@ export const ImportLlamacppModelDialog = ({
                   disabled={importing}
                   className="w-full h-12 border border-dashed text-muted-foreground"
                 >
-                  Select GGUF File
+                  {t('providers:selectGgufFile')}
                 </Button>
               )}
             </div>
@@ -512,9 +510,9 @@ export const ImportLlamacppModelDialog = ({
             {isMultimodal && (
               <div className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium">MMPROJ File</h3>
+                  <h3 className="font-medium">{t('providers:mmprojFile')}</h3>
                   <span className="text-xs bg-secondary px-2 py-1 rounded-sm">
-                    Required for Multimodal
+                    {t('providers:requiredForMultimodal')}
                   </span>
                 </div>
 
@@ -546,7 +544,7 @@ export const ImportLlamacppModelDialog = ({
                           onClick={() => handleFileSelect('mmproj')}
                           disabled={importing || isValidatingMmproj}
                         >
-                          Change
+                          {t('common:change')}
                         </Button>
                       </div>
                       {!isValidatingMmproj &&
@@ -554,18 +552,18 @@ export const ImportLlamacppModelDialog = ({
                         detectedModalities && (
                           <div className="flex items-center gap-2 mt-3 pt-3 border-t">
                             <span className="text-xs text-muted-foreground">
-                              Detected:
+                              {t('providers:detected')}:
                             </span>
                             {detectedModalities.vision && (
                               <span className="inline-flex items-center gap-1 text-xs bg-secondary px-2 py-0.5 rounded-sm">
                                 <IconPhoto size={12} />
-                                Vision
+                                {t('providers:vision')}
                               </span>
                             )}
                             {detectedModalities.audio && (
                               <span className="inline-flex items-center gap-1 text-xs bg-secondary px-2 py-0.5 rounded-sm">
                                 <IconMicrophone size={12} />
-                                Audio
+                                {t('providers:audio')}
                               </span>
                             )}
                           </div>
@@ -582,7 +580,7 @@ export const ImportLlamacppModelDialog = ({
                           />
                           <div>
                             <p className="text-sm font-medium text-destructive">
-                              MMProj Validation Error
+                              {t('providers:mmprojValidationError')}
                             </p>
                             <p className="text-sm text-destructive/90 mt-1">
                               {mmprojValidationError}
@@ -601,7 +599,7 @@ export const ImportLlamacppModelDialog = ({
                             className="text-blue-500 animate-spin"
                           />
                           <p className="text-sm text-blue-700">
-                            Validating MMProj file...
+                            {t('providers:validatingMmprojFile')}
                           </p>
                         </div>
                       </div>
@@ -615,7 +613,7 @@ export const ImportLlamacppModelDialog = ({
                     disabled={importing}
                     className="w-full h-12 border border-dashed text-muted-foreground"
                   >
-                    Select MMPROJ File
+                    {t('providers:selectMmprojFile')}
                   </Button>
                 )}
               </div>
@@ -630,7 +628,7 @@ export const ImportLlamacppModelDialog = ({
             onClick={() => handleOpenChange(false)}
             disabled={importing}
           >
-            Cancel
+            {t('common:cancel')}
           </Button>
           <Button
             onClick={handleImport}
@@ -647,7 +645,7 @@ export const ImportLlamacppModelDialog = ({
             }
           >
             {importing && <IconLoader2 className="mr-2 size-4 animate-spin" />}
-            {importing ? 'Importing...' : 'Import Model'}
+            {importing ? t('common:importing') : t('providers:importModel')}
           </Button>
         </div>
       </DialogContent>

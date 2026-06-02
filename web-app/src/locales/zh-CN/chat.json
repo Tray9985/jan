@@ -8,5 +8,15 @@
   "newConversation": "新对话",
   "clearHistory": "清除历史记录",
   "temporaryChat": "临时聊天",
-  "temporaryChatDescription": "开始一个临时对话，不会保存到您的聊天历史记录中。"
+  "temporaryChatDescription": "开始一个临时对话，不会保存到您的聊天历史记录中。",
+  "attachmentsProcessing": "请等待附件处理完成",
+  "attachmentsDisabled": "附件功能已在设置中禁用",
+  "fileTooLarge": "文件过大",
+  "filesAlreadyAttached": "文件已添加",
+  "attachDocumentsFailed": "添加文档失败",
+  "removeAttachmentFailed": "移除附件失败",
+  "imagesAlreadyAttached": "部分图片已添加",
+  "audioAlreadyAttached": "部分音频文件已添加",
+  "readAudioFailed": "读取音频文件失败",
+  "readFileFailed": "读取文件失败"
 }

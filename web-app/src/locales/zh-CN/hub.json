@@ -13,5 +13,14 @@
   "useModel": "使用此模型",
   "downloadModel": "下载模型",
   "tools": "工具",
-  "searchPlaceholder": "在 Hugging Face 上搜索模型..."
+  "searchPlaceholder": "在 Hugging Face 上搜索模型...",
+  "downloadFailed": "下载启动失败",
+  "backToHub": null,
+  "modelNotFound": "未找到模型",
+  "version": "版本",
+  "format": "格式",
+  "size": "大小",
+  "action": "操作",
+  "readme": "说明文档",
+  "readmeFailed": "加载说明文档失败"
 }

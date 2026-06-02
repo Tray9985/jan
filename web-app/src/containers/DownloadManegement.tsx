@@ -528,7 +528,7 @@ export function DownloadManagement() {
                                 <IconPlayerPlay
                                   size={16}
                                   className="text-muted-foreground cursor-pointer"
-                                  title="Resume download"
+                                  title={t('common:resumeDownload')}
                                 />
                               </Button>
                             ) : (
@@ -540,7 +540,7 @@ export function DownloadManagement() {
                                 <IconPlayerPause
                                   size={16}
                                   className="text-muted-foreground cursor-pointer"
-                                  title="Pause download"
+                                  title={t('common:pauseDownload')}
                                 />
                               </Button>
                             ))}
@@ -554,7 +554,7 @@ export function DownloadManagement() {
                             <IconX
                               size={16}
                               className="text-muted-foreground cursor-pointer"
-                              title="Cancel download"
+                              title={t('common:cancelDownload')}
                             />
                           </Button>
                         </div>

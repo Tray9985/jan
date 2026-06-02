@@ -5,6 +5,7 @@ import {
   useAttachmentName,
   useEnsureAttachmentNames,
 } from '@/hooks/useAttachmentNames'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 export type RagCitation = {
   id: string
@@ -95,6 +96,7 @@ RagCitationItem.displayName = 'RagCitationItem'
 
 const WebCitationItem = memo(({ c }: { c: WebCitation }) => {
   const [expanded, setExpanded] = useState(false)
+  const { t } = useTranslation()
   let host = ''
   try {
     host = new URL(c.url).hostname.replace(/^www\./, '')
@@ -131,7 +133,7 @@ const WebCitationItem = memo(({ c }: { c: WebCitation }) => {
             type="button"
             onClick={() => setExpanded((v) => !v)}
             className="text-muted-foreground"
-            aria-label="toggle snippet"
+            aria-label={t('common:toggleSnippet')}
           >
             <ChevronRightIcon
               className={cn(

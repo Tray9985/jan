@@ -195,16 +195,16 @@ function HubModelDetailContent() {
         <HeaderPage>
           <Button
           onClick={() => navigate({ to: route.hub.index })}
-          aria-label="Go back"
+          aria-label={t('common:goBack')}
           variant="ghost"
           size="sm"
         >
           <IconArrowLeft size={18} className="text-muted-foreground" />
-          <span className="text-foreground">Back to Hub</span>
+          <span className="text-foreground">{t('hub:backToHub')}</span>
         </Button>
         </HeaderPage>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-muted-foreground">Model not found</p>
+          <p className="text-muted-foreground">{t('hub:modelNotFound')}</p>
         </div>
       </div>
     )
@@ -216,13 +216,13 @@ function HubModelDetailContent() {
         <div className="flex items-center gap-2 w-full">
           <Button
             onClick={() => navigate({ to: route.hub.index })}
-            aria-label="Go back"
+            aria-label={t('common:goBack')}
             variant="ghost"
             size="sm"
             className='relative z-20'
           >
             <IconArrowLeft size={18} className="text-muted-foreground" />
-            <span className="text-foreground">Back to Hub</span>
+            <span className="text-foreground">{t('hub:backToHub')}</span>
           </Button>
         </div>
       </HeaderPage>
@@ -305,7 +305,7 @@ function HubModelDetailContent() {
                 <div className="flex items-center gap-2 mb-4">
                   <IconFileCode size={20} className="text-muted-foreground" />
                   <h2 className="text-lg font-semibold text-foreground">
-                    Variants ({modelData.quants.length})
+                    {t('hub:variants', { count: modelData.quants.length })}
                   </h2>
                 </div>
 
@@ -314,17 +314,17 @@ function HubModelDetailContent() {
                     <thead>
                       <tr className="border-b ">
                         <th className="text-left py-3 px-2 text-sm font-medium">
-                          Version
+                          {t('hub:version')}
                         </th>
                         <th className="text-left py-3 px-2 text-sm font-medium">
-                          Format
+                          {t('hub:format')}
                         </th>
                         <th className="text-left py-3 px-2 text-sm font-medium">
-                          Size
+                          {t('hub:size')}
                         </th>
                         <th></th>
                         <th className="text-right py-3 px-2 text-sm font-medium">
-                          Action
+                          {t('hub:action')}
                         </th>
                       </tr>
                     </thead>
@@ -447,7 +447,7 @@ function HubModelDetailContent() {
                                     className={cn(isDownloading && 'hidden')}
                                     variant="outline"
                                   >
-                                    Download
+                                    {t('common:download')}
                                   </Button>
                                 )
                               })()}
@@ -467,14 +467,14 @@ function HubModelDetailContent() {
                 <div className="flex items-center gap-2 mb-4">
                   <IconFileCode size={20} className="text-muted-foreground" />
                   <h2 className="text-lg font-semibold">
-                    README
+                    {t('hub:readme')}
                   </h2>
                 </div>
 
                 {isLoadingReadme ? (
                   <div className="flex items-center justify-center py-8">
                     <span className="text-muted-foreground">
-                      Loading README...
+                      {t('common:loading')}
                     </span>
                   </div>
                 ) : readmeContent ? (
@@ -495,7 +495,7 @@ function HubModelDetailContent() {
                 ) : (
                   <div className="flex items-center justify-center py-8">
                     <span className="text-muted-foreground">
-                      Failed to load README
+                      {t('hub:readmeFailed')}
                     </span>
                   </div>
                 )}

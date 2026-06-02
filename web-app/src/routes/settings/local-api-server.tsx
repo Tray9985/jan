@@ -115,8 +115,8 @@ function LocalAPIServerContent() {
     // Validate API key before starting server
     if (serverStatus === 'stopped') {
       console.log('Starting server with port:', serverPort)
-      toast.info('Starting server...', {
-        description: `Attempting to start server on port ${serverPort}`,
+      toast.info(t('common:startingServer'), {
+        description: t('settings:attemptingStartPort', { port: serverPort }),
       })
 
       // if (!apiKey || apiKey.toString().trim().length === 0) {
@@ -191,23 +191,23 @@ function LocalAPIServerContent() {
 
           // Port-related errors (highest priority)
           if (errorMsg.includes('Address already in use')) {
-            toast.error('Port has been occupied', {
-              description: `Port ${serverPort} is already in use. Please try a different port.`,
+            toast.error(t('settings:portOccupied'), {
+              description: t('settings:portOccupiedDesc', { port: serverPort }),
             })
           }
           // Model-related errors
           else if (errorMsg.includes('Invalid or inaccessible model path')) {
-            toast.error('Invalid or inaccessible model path', {
+            toast.error(t('settings:invalidModelPath'), {
               description: errorMsg,
             })
           } else if (errorMsg.includes('model')) {
-            toast.error('Failed to start model', {
+            toast.error(t('settings:failedStartModel'), {
               description: errorMsg,
             })
           }
           // Generic server errors
           else {
-            toast.error('Failed to start server', {
+            toast.error(t('settings:failedStartServer'), {
               description: errorMsg,
             })
           }
@@ -268,7 +268,7 @@ function LocalAPIServerContent() {
             <PopoverTrigger asChild>
               <Button size="sm" variant="outline" className="relative z-50">
                 <IconSettings2 size={16} />
-                Configuration
+                {t('settings:localApiServer.configuration')}
               </Button>
             </PopoverTrigger>
             <PopoverContent
@@ -364,10 +364,10 @@ function LocalAPIServerContent() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium">
-                        Execute tools on server
+                        {t('settings:localApiServer.executeToolsOnServer')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Run tools server-side for chat endpoints.
+                        {t('settings:localApiServer.executeToolsOnServerDesc')}
                       </p>
                     </div>
                     <Switch
@@ -503,18 +503,18 @@ function LocalAPIServerContent() {
 
               <Card>
                 <CardItem
-                  title="Server Status"
+                  title={t('settings:localApiServer.serverStatus')}
                   description={
                     isServerRunning ? (
                       <div className="space-y-1">
-                        <div>The server is currently running.</div>
+                        <div>{t('settings:localApiServer.serverRunning')}</div>
                         <div className="text-xs font-mono">
                           http://{serverHost}:{serverPort}
                           {apiPrefix}
                         </div>
                       </div>
                     ) : (
-                      'The server is stopped.'
+                      t('settings:localApiServer.serverStopped')
                     )
                   }
                 />
@@ -552,7 +552,7 @@ function LocalAPIServerContent() {
                   <CollapsibleTrigger className="flex items-center gap-2 hover:no-underline data-[state=open]:[&>svg.chevron-down]:hidden data-[state=closed]:[&>svg.chevron-up]:hidden">
                     <IconChevronDown size={16} className="chevron-down" />
                     <IconChevronUp size={16} className="chevron-up" />
-                    <span className="font-medium text-sm">Server Log</span>
+                    <span className="font-medium text-sm">{t('settings:localApiServer.serverLog')}</span>
                   </CollapsibleTrigger>
                   <Button
                     variant="outline"
@@ -561,7 +561,7 @@ function LocalAPIServerContent() {
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <IconExternalLink size={14} className="mr-1" />
-                    Open in New Window
+                    {t('settings:localApiServer.openInNewWindow')}
                   </Button>
                 </div>
                 <CollapsibleContent>

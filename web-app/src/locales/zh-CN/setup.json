@@ -9,5 +9,12 @@
   "downloadingDescription": "请等待我们下载模型。这可能需要几分钟。",
   "orDivider": "或",
   "localModel": "设置本地模型",
-  "remoteProvider": "设置远程提供商"
+  "remoteProvider": "设置远程提供商",
+  "gettingReady": "稍等，Jan 正在准备…",
+  "mayTakeMinutes": "可能需要几分钟。",
+  "needsModel": "Jan 需要一个模型才能开始…",
+  "recommendedModel": "推荐模型",
+  "janLogo": "Jan 标志",
+  "general": "通用",
+  "multimodal": "多模态"
 }

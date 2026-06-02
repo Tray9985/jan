@@ -148,11 +148,11 @@ export const DialogEditModel = ({
       if (capabilitiesChanged) setOriginalCapabilities(capabilities)
 
       // Show success toast and close dialog
-      toast.success('Model updated successfully')
+      toast.success(t('providers:modelUpdated'))
       setIsOpen(false)
     } catch (error) {
       console.error('Failed to update model:', error)
-      toast.error('Failed to update model. Please try again.')
+      toast.error(t('providers:modelUpdateFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -203,18 +203,18 @@ export const DialogEditModel = ({
             htmlFor="display-name"
             className="text-sm font-medium mb-3 block"
           >
-            Display Name
+            {t('providers:displayName')}
           </label>
           <Input
             id="display-name"
             value={displayName}
             onChange={(e) => handleDisplayNameChange(e.target.value)}
-            placeholder="Enter display name"
+            placeholder={t('providers:enterDisplayName')}
             className="w-full"
             disabled={isLoading}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            This is the name that will be shown in the interface. The original model file remains unchanged.
+            {t('providers:displayNameHint')}
           </p>
         </div>
 
@@ -301,10 +301,10 @@ export const DialogEditModel = ({
             {isLoading ? (
               <>
                 <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {t('common:saving')}
               </>
             ) : (
-              'Save Changes'
+              t('common:saveChanges')
             )}
           </Button>
         </div>

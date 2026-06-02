@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { toNumber } from '@/utils/number'
 import { Gauge } from 'lucide-react'
 import { useInterfaceSettings } from '@/hooks/useInterfaceSettings'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import {
   Popover,
   PopoverContent,
@@ -29,6 +30,7 @@ interface TokenSpeedIndicatorProps {
 export const TokenSpeedIndicator = memo(
   ({ metadata, streaming }: TokenSpeedIndicatorProps) => {
     const showTokenSpeed = useInterfaceSettings((s) => s.showTokenSpeed)
+    const { t } = useTranslation()
 
     const nonStreamingAssistantParam =
       typeof metadata?.assistant === 'object' &&
@@ -73,7 +75,7 @@ export const TokenSpeedIndicator = memo(
         <PopoverTrigger asChild>
           <button
             type="button"
-            aria-label="Token speed details"
+            aria-label={t('common:tokenSpeedDetails')}
             className="text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
           >
             <Gauge size={16} />
