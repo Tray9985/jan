@@ -4,7 +4,7 @@
   &.is-user {
     p {
       line-height: 1.6;
-      margin-bottom: 1em;
+      margin-bottom: 0.5em;
       &:first-child {
         margin-bottom: 0;
       }
@@ -50,7 +50,7 @@
   /* Paragraphs and text */
   p {
     line-height: 1.6;
-    margin-bottom: 1em;
+    margin-bottom: 0.5em;
     &:last-child {
       margin-bottom: 0;
     }

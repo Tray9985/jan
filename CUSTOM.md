@@ -85,6 +85,14 @@ Token 计数器不再限制为 llamacpp 专属。远程 API 模型也显示，�
 
 默认关闭。上游开启，定制版改为 `autoUpdateCheck: false`。
 
+## 消息正文段落间距
+
+`markdown.css` 中 `.markdown p` 的段落间距从 `1em` 降为 `0.5em`，让空行更紧凑。
+
+## macOS 禁用双指缩放
+
+WKWebView 原生手势会缩放整个 UI，通过拦截 `gesturestart` 事件和 `touch-action: pan-x pan-y` CSS 禁用。
+
 ## 构建
 
 ### ARM-only 构建

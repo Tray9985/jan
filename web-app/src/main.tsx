@@ -62,6 +62,14 @@ setupMobileViewport()
 // Prevent files from opening when dropped
 preventDefaultFileDrop()
 
+// macOS 禁用双指捏合缩放
+const preventPinchZoom = () => {
+  document.addEventListener('gesturestart', (e) => e.preventDefault())
+  document.addEventListener('gesturechange', (e) => e.preventDefault())
+  document.addEventListener('gestureend', (e) => e.preventDefault())
+}
+preventPinchZoom()
+
 // Create a new router instance
 const router = createRouter({ routeTree })
 
