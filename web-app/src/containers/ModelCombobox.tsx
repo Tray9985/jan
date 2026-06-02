@@ -111,31 +111,40 @@ const ModelsList = ({
   onModelSelect,
   onHighlight,
 }: {
-  filteredModels: string[]
+  filteredModels: ProviderModelInfo[]
   value: string
   highlightedIndex: number
-  onModelSelect: (model: string) => void
+  onModelSelect: (model: ProviderModelInfo) => void
   onHighlight: (index: number) => void
 }) => (
   <>
-    {filteredModels.map((model, index) => (
-      <div
-        key={model}
-        data-model={model}
-        onClick={(e) => {
-          e.stopPropagation()
-          onModelSelect(model)
-        }}
-        onMouseEnter={() => onHighlight(index)}
-        className={cn(
-          'cursor-pointer mx-3 px-2 rounded-md py-2 bg-background z-20 transition-all duration-200',
-          value === model && 'bg-secondary shadow-sm',
-          highlightedIndex === index && ' bg-secondary'
-        )}
-      >
-        <span className="text-sm truncate text-foreground">{model}</span>
-      </div>
-    ))}
+    {filteredModels.map((model, index) => {
+      const displayName = model.displayName || model.id
+      const showIdSecondary = displayName !== model.id
+      return (
+        <div
+          key={model.id}
+          data-model={model.id}
+          onClick={(e) => {
+            e.stopPropagation()
+            onModelSelect(model)
+          }}
+          onMouseEnter={() => onHighlight(index)}
+          className={cn(
+            'cursor-pointer mx-3 px-2 rounded-md py-2 bg-background z-20 transition-all duration-200',
+            value === model.id && 'bg-secondary shadow-sm',
+            highlightedIndex === index && ' bg-secondary'
+          )}
+        >
+          <span className="text-sm truncate text-foreground">{displayName}</span>
+          {showIdSecondary && (
+            <span className="text-xs text-muted-foreground truncate block">
+              {model.id}
+            </span>
+          )}
+        </div>
+      )
+    })}
   </>
 )
 
@@ -143,11 +152,11 @@ const ModelsList = ({
 function useKeyboardNavigation(
   open: boolean,
   setOpen: React.Dispatch<React.SetStateAction<boolean>>,
-  models: string[],
-  filteredModels: string[],
+  models: ProviderModelInfo[],
+  filteredModels: ProviderModelInfo[],
   highlightedIndex: number,
   setHighlightedIndex: React.Dispatch<React.SetStateAction<number>>,
-  onModelSelect: (model: string) => void,
+  onModelSelect: (model: ProviderModelInfo) => void,
   dropdownRef: React.RefObject<HTMLDivElement | null>
 ) {
   // Scroll to the highlighted element
@@ -246,7 +255,7 @@ function useKeyboardNavigation(
 type ModelComboboxProps = {
   value: string
   onChange: (value: string) => void
-  models: string[]
+  models: ProviderModelInfo[]
   loading?: boolean
   error?: string | null
   onRefresh?: () => void
@@ -289,11 +298,14 @@ export function ModelCombobox({
   // Hook for the dropdown position
   const { dropdownPosition } = useDropdownPosition(open, containerRef)
 
-  // Optimized model filtering
+  // 按 displayName / id 过滤
   const filteredModels = useMemo(() => {
     if (!inputValue.trim()) return models
     const searchValue = inputValue.toLowerCase()
-    return models.filter((model) => model.toLowerCase().includes(searchValue))
+    return models.filter((model) => {
+      const searchStr = `${model.id} ${model.displayName || ''} ${model.name || ''}`.toLowerCase()
+      return searchStr.includes(searchValue)
+    })
   }, [models, inputValue])
 
   // Reset highlighted index when filtered models change
@@ -359,9 +371,10 @@ export function ModelCombobox({
 
   // Handler for the model selection
   const handleModelSelect = useCallback(
-    (model: string) => {
-      setInputValue(model)
-      onChange(model)
+    (model: ProviderModelInfo) => {
+      const id = model.id
+      setInputValue(id)
+      onChange(id)
       setOpen(false)
       setHighlightedIndex(-1)
       inputRef.current?.focus()

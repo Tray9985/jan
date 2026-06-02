@@ -52,6 +52,18 @@ import {
   supportsRemoteCatalog,
   fetchTopRemoteModels,
 } from '@/lib/remoteModelCatalog'
+import { getModelCapabilities } from '@/lib/models'
+
+/**
+ * 从 ProviderModelInfo 的布尔字段派生出 capabilities 数组
+ */
+function capabilitiesFromProviderModelInfo(info: ProviderModelInfo): string[] {
+  const caps: string[] = []
+  if (info.reasoning) caps.push('reasoning')
+  if (info.tool_call) caps.push('tools')
+  if (info.attachment) caps.push('vision')
+  return caps
+}
 
 // as route.threadsDetail
 export const Route = createFileRoute('/settings/providers/$providerName')({
@@ -516,16 +528,22 @@ function ProviderDetail() {
           version: '1.0',
         }))
       } else {
-        const modelIds = await serviceHub
+        const modelInfos = await serviceHub
           .providers()
           .fetchModelsFromProvider(provider)
-        newModels = modelIds.map((id) => ({
-          id,
-          model: id,
-          name: id,
-          capabilities: ['completion'],
-          version: '1.0',
-        }))
+        newModels = modelInfos.map((info) => {
+          const apiCaps = capabilitiesFromProviderModelInfo(info)
+          const staticCaps = getModelCapabilities(provider.provider, info.id)
+          return {
+            id: info.id,
+            model: info.id,
+            name: info.displayName || info.name || info.id,
+            displayName: info.displayName || info.name || info.id,
+            capabilities: apiCaps.length > 0 ? apiCaps : staticCaps,
+            version: '1.0',
+            providerMetadata: info as unknown as Record<string, unknown>,
+          }
+        })
       }
 
       if (supportsRemoteCatalog(provider.provider)) {
@@ -1189,6 +1207,7 @@ function ProviderDetail() {
                             )}
                           </Button>
                           <DialogAddModel provider={provider} />
+                          <DialogDeleteAllModels provider={provider} />
                         </>
                       )}
                       {provider &&

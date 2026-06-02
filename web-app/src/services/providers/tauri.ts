@@ -13,6 +13,25 @@ import { DefaultProvidersService } from './default'
 import { getModelCapabilities } from '@/lib/models'
 import { providerRemoteApiKeyChain } from '@/lib/provider-api-keys'
 
+/**
+ * 从 API 返回的原始模型对象中提取 ProviderModelInfo
+ * 对缺失字段使用兜底值，兼容标准 OpenAI 格式
+ */
+function extractProviderModelInfo(raw: Record<string, unknown>): ProviderModelInfo {
+  return {
+    id: (raw.id as string) || '',
+    name: (raw.name as string) || undefined,
+    displayName: (raw.display_name as string)
+      || (raw.name as string)
+      || (raw.id as string)
+      || undefined,
+    reasoning: typeof raw.reasoning === 'boolean' ? raw.reasoning : undefined,
+    tool_call: typeof raw.tool_call === 'boolean' ? raw.tool_call : undefined,
+    attachment: typeof raw.attachment === 'boolean' ? raw.attachment : undefined,
+    temperature: typeof raw.temperature === 'boolean' ? raw.temperature : undefined,
+  }
+}
+
 export class TauriProvidersService extends DefaultProvidersService {
   fetch(): typeof fetch {
     // Tauri implementation uses Tauri's fetch to avoid CORS issues
@@ -129,7 +148,7 @@ export class TauriProvidersService extends DefaultProvidersService {
     }
   }
 
-  async fetchModelsFromProvider(provider: ModelProvider): Promise<string[]> {
+  async fetchModelsFromProvider(provider: ModelProvider): Promise<ProviderModelInfo[]> {
     if (!provider.base_url) {
       throw new Error('Provider must have base_url configured')
     }
@@ -206,22 +225,29 @@ export class TauriProvidersService extends DefaultProvidersService {
 
         if (data.data && Array.isArray(data.data)) {
           return data.data
-            .map((model: { id: string }) => model.id)
-            .filter(Boolean)
+            .map((model: { id: string }) => extractProviderModelInfo(model))
+            .filter(Boolean) as ProviderModelInfo[]
         }
         if (Array.isArray(data)) {
           return data
             .filter(Boolean)
             .map((model) =>
-              typeof model === 'object' && 'id' in model ? model.id : model
+              typeof model === 'object' && 'id' in model
+                ? extractProviderModelInfo(model as { id: string })
+                : (typeof model === 'string'
+                  ? { id: model as string }
+                  : null)
             )
+            .filter(Boolean) as ProviderModelInfo[]
         }
         if (data.models && Array.isArray(data.models)) {
           return data.models
             .map((model: string | { id: string }) =>
-              typeof model === 'string' ? model : model.id
+              typeof model === 'string'
+                ? { id: model }
+                : extractProviderModelInfo(model as { id: string })
             )
-            .filter(Boolean)
+            .filter(Boolean) as ProviderModelInfo[]
         }
         console.warn('Unexpected response format from provider API:', data)
         return []

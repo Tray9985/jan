@@ -25,6 +25,20 @@ type ProviderSetting = {
 }
 
 /**
+ * 从 provider API /models 接口返回的模型信息
+ * 用于自动填充 displayName、capabilities 和元数据
+ */
+type ProviderModelInfo = {
+  id: string
+  name?: string
+  displayName?: string
+  reasoning?: boolean
+  tool_call?: boolean
+  attachment?: boolean
+  temperature?: boolean
+}
+
+/**
  * The model object structure
  */
 type Model = {
@@ -42,6 +56,8 @@ type Model = {
   /** Whether this model was imported from a user-supplied local file
    *  (path lives outside the provider's managed models directory). */
   imported?: boolean
+  /** 从 provider API 返回的原始模型元数据，供后续上下文记录等扩展使用 */
+  providerMetadata?: Record<string, unknown>
 }
 
 /**

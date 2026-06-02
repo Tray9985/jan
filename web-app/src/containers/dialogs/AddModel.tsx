@@ -18,6 +18,18 @@ import { useTranslation } from '@/i18n/react-i18next-compat'
 import { getModelCapabilities } from '@/lib/models'
 import { toast } from 'sonner'
 
+/**
+ * 从 ProviderModelInfo 的布尔字段派生出 capabilities 数组
+ * API 未返回的字段视为 undefined，不生成对应能力
+ */
+function capabilitiesFromProviderModelInfo(info: ProviderModelInfo): string[] {
+  const caps: string[] = []
+  if (info.reasoning) caps.push('reasoning')
+  if (info.tool_call) caps.push('tools')
+  if (info.attachment) caps.push('vision')
+  return caps
+}
+
 type DialogAddModelProps = {
   provider: ModelProvider
   trigger?: React.ReactNode
@@ -46,13 +58,25 @@ export const DialogAddModel = ({ provider, trigger }: DialogAddModelProps) => {
       return // Don't submit if model ID already exists
     }
 
+    // 从 API 返回的模型信息中获取完整数据
+    const apiModelInfo = models.find((m) => m.id === modelId)
+    // 优先用 API 的 capabilities；未返回时退回到静态配置
+    const apiCaps = apiModelInfo
+      ? capabilitiesFromProviderModelInfo(apiModelInfo)
+      : []
+    const staticCaps = getModelCapabilities(provider.provider, modelId)
+
     // Create the new model
-    const newModel = {
+    const newModel: Model = {
       id: modelId,
       model: modelId,
-      name: modelId,
-      capabilities: getModelCapabilities(provider.provider, modelId),
+      name: apiModelInfo?.displayName || apiModelInfo?.name || modelId,
+      displayName: apiModelInfo?.displayName || apiModelInfo?.name || modelId,
+      capabilities: apiCaps.length > 0 ? apiCaps : staticCaps,
       version: '1.0',
+      providerMetadata: apiModelInfo
+        ? (apiModelInfo as unknown as Record<string, unknown>)
+        : undefined,
     }
 
     // Update the provider with the new model
