@@ -58,12 +58,12 @@ export const TokenSpeedIndicator = memo(
           {displaySpeed > 0 && (
             <div className="flex items-center gap-1">
               <Gauge size={16} />
-              <span>{displaySpeed} tokens/sec</span>
+              <span>{displaySpeed} Tokens/sec</span>
             </div>
           )}
           {displayTokenCount > 0 && (
             <span className="text-muted-foreground">
-              ({displayTokenCount} tokens)
+              ({displayTokenCount} Tokens)
             </span>
           )}
         </div>

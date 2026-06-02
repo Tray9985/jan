@@ -23,6 +23,8 @@ export interface TokenCountData {
   fitEnabled: boolean
   configuredCtxLen?: number
   modalities?: { vision: boolean; audio: boolean }
+  /** 费用（美元），从 providerMetadata.cost 按每百万 token 单价计算 */
+  cost?: number
   error?: string
 }
 
@@ -80,11 +82,11 @@ export const useTokensCount = (messages: ThreadMessage[] = []) => {
   const [loading, setLoading] = useState(false)
   const reqId = useRef(0)
 
-  const modelId =
-    selectedProvider === 'llamacpp' ? selectedModel?.id : undefined
+  const modelId = selectedModel?.id
 
   useEffect(() => {
-    if (!modelId) {
+    // 仅本地模型需要从扩展获取运行时 modelProps
+    if (selectedProvider !== 'llamacpp' || !modelId) {
       setModelProps(undefined)
       setLoading(false)
       return
@@ -113,7 +115,7 @@ export const useTokensCount = (messages: ThreadMessage[] = []) => {
   }, [modelId, messages.length])
 
   const tokenData: TokenCountData = useMemo(() => {
-    if (selectedProvider !== 'llamacpp' || !modelId) {
+    if (!modelId) {
       return {
         tokenCount: 0,
         loading: false,
@@ -123,24 +125,50 @@ export const useTokensCount = (messages: ThreadMessage[] = []) => {
     }
     const usage = getLatestServerUsage(messages)
     const tokenCount = usage.totalTokens ?? 0
-    const maxTokens = modelProps?.nCtx
+
+    // 上下文长度：本地模型用运行时 nCtx，远程模型优先取 API 返回的 limit.context
+    const ctxLenSetting = readSettingNumber(
+      selectedModel?.settings?.ctx_len?.controller_props?.value
+    )
+    const apiContextLimit = (
+      selectedModel?.providerMetadata?.limit as
+        | { context?: number }
+        | undefined
+    )?.context
+    const maxTokens =
+      selectedProvider === 'llamacpp'
+        ? modelProps?.nCtx ?? ctxLenSetting
+        : apiContextLimit ?? ctxLenSetting
+
     const percentage = maxTokens ? (tokenCount / maxTokens) * 100 : undefined
     const isNearLimit = percentage ? percentage > 85 : false
 
-    const provider = getProviderByName('llamacpp')
+    const provider =
+      selectedProvider === 'llamacpp' ? getProviderByName('llamacpp') : undefined
     const fitEnabled =
+      selectedProvider === 'llamacpp' &&
       provider?.settings?.find((s) => s.key === 'fit')?.controller_props
         ?.value === true
-    const configuredCtxLen = readSettingNumber(
-      selectedModel?.settings?.ctx_len?.controller_props?.value
-    )
+    const configuredCtxLen = ctxLenSetting
     const modelDisplayName =
-      modelProps?.modelAlias || selectedModel?.name || modelId
+      selectedProvider === 'llamacpp'
+        ? modelProps?.modelAlias || selectedModel?.name || modelId
+        : selectedModel?.name || modelId
     const caps = selectedModel?.capabilities ?? []
     const modalities = {
       vision: caps.includes('vision'),
       audio: caps.includes('audio'),
     }
+
+    // 计算费用：从 providerMetadata.cost 取每百万 token 单价
+    const costMeta = selectedModel?.providerMetadata?.cost as
+      | { input?: number; output?: number }
+      | undefined
+    const cost =
+      costMeta
+        ? ((usage.inputTokens ?? 0) / 1_000_000) * (costMeta.input ?? 0) +
+          ((usage.outputTokens ?? 0) / 1_000_000) * (costMeta.output ?? 0)
+        : undefined
 
     return {
       tokenCount,
@@ -155,6 +183,7 @@ export const useTokensCount = (messages: ThreadMessage[] = []) => {
       fitEnabled,
       configuredCtxLen,
       modalities,
+      cost,
     }
   }, [
     messages,

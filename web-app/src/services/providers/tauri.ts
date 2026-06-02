@@ -29,6 +29,7 @@ function extractProviderModelInfo(raw: Record<string, unknown>): ProviderModelIn
     tool_call: typeof raw.tool_call === 'boolean' ? raw.tool_call : undefined,
     attachment: typeof raw.attachment === 'boolean' ? raw.attachment : undefined,
     temperature: typeof raw.temperature === 'boolean' ? raw.temperature : undefined,
+    raw,
   }
 }
 

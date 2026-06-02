@@ -74,9 +74,7 @@ export const DialogAddModel = ({ provider, trigger }: DialogAddModelProps) => {
       displayName: apiModelInfo?.displayName || apiModelInfo?.name || modelId,
       capabilities: apiCaps.length > 0 ? apiCaps : staticCaps,
       version: '1.0',
-      providerMetadata: apiModelInfo
-        ? (apiModelInfo as unknown as Record<string, unknown>)
-        : undefined,
+      providerMetadata: apiModelInfo?.raw,
     }
 
     // Update the provider with the new model

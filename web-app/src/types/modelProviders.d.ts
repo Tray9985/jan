@@ -36,6 +36,8 @@ type ProviderModelInfo = {
   tool_call?: boolean
   attachment?: boolean
   temperature?: boolean
+  /** API 返回的原始模型对象，供后续扩展使用（limit、cost、family 等） */
+  raw?: Record<string, unknown>
 }
 
 /**

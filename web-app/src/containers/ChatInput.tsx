@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { cn, formatBytes } from '@/lib/utils'
 import { usePrompt } from '@/hooks/usePrompt'
 import { useThreads } from '@/hooks/useThreads'
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
+import { useCallback, useEffect, useRef, useState, memo } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -28,7 +28,6 @@ import {
   IconPaperclip,
   IconLoader2,
   IconWorld,
-  IconBrandChrome,
 } from '@tabler/icons-react'
 import { generateId } from 'ai'
 import { useMessageQueue } from '@/stores/message-queue-store'
@@ -81,8 +80,6 @@ import {
   createDocumentAttachment,
   createAudioAttachment,
 } from '@/types/attachment'
-import JanBrowserExtensionDialog from '@/containers/dialogs/JanBrowserExtensionDialog'
-import { useJanBrowserExtension } from '@/hooks/useJanBrowserExtension'
 import { useAgentMode } from '@/hooks/useAgentMode'
 
 type ChatInputProps = {
@@ -188,31 +185,6 @@ const ChatInput = memo(function ChatInput({
     setSelectedAssistantId(currentAssistant?.id || '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading])
-
-  // Jan Browser Extension hook
-  const {
-    hasConfig: hasJanBrowserMCPConfig,
-    isActive: janBrowserMCPActive,
-    isLoading: isJanBrowserMCPLoading,
-    dialogOpen: extensionDialogOpen,
-    dialogState: extensionDialogState,
-    toggleBrowser: handleBrowseClick,
-    handleCancel: handleExtensionDialogCancel,
-    setDialogOpen: setExtensionDialogOpen,
-  } = useJanBrowserExtension()
-
-  // Check if model supports browser feature (requires both vision and tools)
-  const modelSupportsBrowser = useMemo(() => {
-    const capabilities = selectedModel?.capabilities || []
-    return capabilities.includes('vision') && capabilities.includes('tools')
-  }, [selectedModel?.capabilities])
-
-  // Auto-disable browser feature when model doesn't support it
-  useEffect(() => {
-    if (janBrowserMCPActive && !modelSupportsBrowser) {
-      handleBrowseClick()
-    }
-  }, [janBrowserMCPActive, modelSupportsBrowser, handleBrowseClick])
 
   const attachmentsEnabled = useAttachments((s) => s.enabled)
   const parsePreference = useAttachments((s) => s.parseMode)
@@ -1855,48 +1827,6 @@ const ChatInput = memo(function ChatInput({
                       : undefined
                   }
                 />
-                {!effectiveAgentMode && hasJanBrowserMCPConfig && modelSupportsBrowser && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        disabled={isJanBrowserMCPLoading}
-                        className={cn(janBrowserMCPActive && "text-primary")}
-                        onClick={
-                          isJanBrowserMCPLoading
-                            ? undefined
-                            : handleBrowseClick
-                        }
-                      >
-                        {isJanBrowserMCPLoading ? (
-                          <IconLoader2
-                            size={18}
-                            className="text-primary animate-spin"
-                          />
-                        ) : (
-                          <IconBrandChrome
-                            size={18}
-                            className={cn(
-                              'text-muted-foreground',
-                              janBrowserMCPActive && 'text-primary'
-                            )}
-                          />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        {isJanBrowserMCPLoading
-                          ? 'Starting...'
-                          : janBrowserMCPActive
-                            ? 'Browse (Active)'
-                            : 'Browse'}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-
                 {!effectiveAgentMode && selectedModel?.capabilities?.includes('embeddings') && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -2143,8 +2073,7 @@ const ChatInput = memo(function ChatInput({
             </div>
 
             <div className="flex items-center gap-2">
-              {selectedProvider === 'llamacpp' &&
-                tokenCounterCompact &&
+              {tokenCounterCompact &&
                 !effectiveAgentMode &&
                 !initialMessage &&
                 (threadMessages?.length > 0 || prompt.trim().length > 0) && (
@@ -2215,8 +2144,7 @@ const ChatInput = memo(function ChatInput({
         </div>
       )}
 
-      {selectedProvider === 'llamacpp' &&
-        isModelActive &&
+      {(selectedProvider !== 'llamacpp' || isModelActive) &&
         !effectiveAgentMode &&
         !tokenCounterCompact &&
         !initialMessage &&
@@ -2225,13 +2153,6 @@ const ChatInput = memo(function ChatInput({
             <TokenCounter messages={threadMessages || []} />
           </div>
         )}
-
-      <JanBrowserExtensionDialog
-        open={extensionDialogOpen}
-        onOpenChange={setExtensionDialogOpen}
-        state={extensionDialogState}
-        onCancel={handleExtensionDialogCancel}
-      />
     </div>
   )
 })

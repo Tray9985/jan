@@ -25,6 +25,7 @@ import {
   isModelLevelRejected,
 } from '@/lib/providerCaps'
 import { DynamicControllerSetting } from '@/containers/dynamicControllerSetting'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 export interface ParametersSectionProps {
   params: Record<string, unknown>
@@ -54,6 +55,7 @@ export function ParametersSection({
   providerId,
   modelId,
 }: ParametersSectionProps) {
+  const { t } = useTranslation()
   const modelRejects = (key: string) =>
     !!(providerId && modelId && isModelLevelRejected(key, providerId, modelId))
   const supportIndex = useMemo(() => {
@@ -118,7 +120,7 @@ export function ParametersSection({
     <div className="space-y-3">
       {!hasAny && (
         <div className="text-xs text-muted-foreground py-2">
-          No overrides — using model defaults.
+          {t('common:noOverrides')}
         </div>
       )}
 
@@ -146,9 +148,11 @@ export function ParametersSection({
 
       {unknownKeys.length > 0 && (
         <div className="text-xs text-muted-foreground">
-          {unknownKeys.length} unrecognized parameter
-          {unknownKeys.length === 1 ? '' : 's'} hidden:{' '}
-          {unknownKeys.join(', ')}
+          {t('common:unrecognizedParamHidden', {
+            count: unknownKeys.length,
+            suffix: unknownKeys.length === 1 ? '' : 's',
+            list: unknownKeys.join(', '),
+          })}
         </div>
       )}
 
@@ -182,17 +186,12 @@ function StandaloneRow({
 }: StandaloneRowProps) {
   const def = paramsSettings[paramKey]
   if (!def) return null
+  const value = params[paramKey]
   const disabledReason = evaluateDisabled(def, params)
-  const value = params[paramKey] ?? def.value
-  const capUnsupported =
-    support && def.capability !== 'core' && def.capability !== 'client_only' && !support.known
-  const unsupported = modelRejected || capUnsupported
-  const maybeOnly =
-    !modelRejected &&
-    support &&
-    support.known &&
-    support.supportedBy.length === 0 &&
-    support.maybeBy.length > 0
+  const unsupported = modelRejected
+  const maybeOnly = support?.known && support.supportedBy.length === 0
+  const { t } = useTranslation()
+
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2 min-w-0">
@@ -202,14 +201,14 @@ function StandaloneRow({
             <IconAlertTriangle
               size={12}
               className="text-destructive shrink-0"
-              aria-label="Not supported — will be stripped on send"
+              aria-label={t('common:paramNotSupportedStrip')}
             />
           )}
           {!unsupported && maybeOnly && (
             <IconAlertTriangle
               size={12}
               className="text-amber-500 shrink-0"
-              aria-label="May be ignored by this provider"
+              aria-label={t('common:paramMayBeIgnored')}
             />
           )}
         </div>
@@ -218,7 +217,7 @@ function StandaloneRow({
           size="icon-sm"
           onClick={() => onRemove(paramKey)}
           className="shrink-0 h-7 w-7"
-          aria-label={`Remove ${def.title}`}
+          aria-label={t('common:removeParam', { title: def.title })}
         >
           <IconTrash size={14} className="text-destructive" />
         </Button>
@@ -240,7 +239,9 @@ function StandaloneRow({
               : 'text-xs text-muted-foreground'
           }
         >
-          {unsupported ? 'Not supported — will be skipped.' : def.effectHint}
+          {unsupported
+            ? t('common:paramNotSupported')
+            : def.effectHint}
         </div>
       )}
     </div>
@@ -319,6 +320,7 @@ function AddParameterMenu({
   onAddGroup,
   modelRejects,
 }: AddParameterMenuProps) {
+  const { t } = useTranslation()
   const items = useMemo(() => {
     return paramCategories
       .map((cat) => {
@@ -351,7 +353,7 @@ function AddParameterMenu({
   if (items.length === 0) {
     return (
       <div className="text-xs text-muted-foreground">
-        No tunable parameters for this provider.
+        {t('common:noTunableParams')}
       </div>
     )
   }
@@ -361,7 +363,7 @@ function AddParameterMenu({
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="w-full justify-start">
           <IconPlus size={14} className="mr-1" />
-          Add parameter
+          {t('common:addParameter')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 max-h-[60vh] overflow-y-auto">

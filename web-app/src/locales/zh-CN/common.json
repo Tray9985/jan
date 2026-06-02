@@ -555,5 +555,22 @@
   "deleteMessageConfirm": "确定要删除这条消息？此操作无法撤销。",
   "modelSleeping": "模型休眠中",
   "visionInputSupported": "支持图像输入",
-  "audioInputSupported": "支持音频输入"
+  "audioInputSupported": "支持音频输入",
+  "contextWindow": "上下文窗口",
+  "cost": "费用",
+  "sampling": "采样参数",
+  "samplingAssistant": "采样参数 — {{name}}",
+  "noOverrides": "无自定义覆盖 — 使用模型默认值。",
+  "availableTools": "可用工具",
+  "resetAll": "全部重置",
+  "openAssistantSettings": "打开助手设置",
+  "pickAssistant": "在上方选择一个助手来配置采样参数。",
+  "addParameter": "添加参数",
+  "unrecognizedParamHidden": "{{count}} 个未识别参数已隐藏：{{list}}",
+  "paramNotSupported": "不支持 — 将被跳过。",
+  "paramNotSupportedStrip": "不支持 — 发送时将被移除",
+  "paramMayBeIgnored": "可能被此提供者忽略",
+  "removeParam": "移除 {{title}}",
+  "noTunableParams": "此提供者没有可调参数。",
+  "loadingAssistant": "正在加载助手…"
 }

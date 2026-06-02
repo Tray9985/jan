@@ -154,10 +154,10 @@ export function SamplerPopover({
   if (isPredefinedRemoteProvider(providerId)) return null
 
   const triggerLabel = assistantsLoading
-    ? 'Loading assistant…'
+    ? t('common:loadingAssistant')
     : activeAssistant
-      ? `Sampling — ${activeAssistant.name}`
-      : 'Sampling'
+      ? t('common:samplingAssistant', { name: activeAssistant.name })
+      : t('common:sampling')
 
   return (
     <Popover>
@@ -208,7 +208,7 @@ export function SamplerPopover({
           <div className="flex items-center gap-1 shrink-0">
             {hasOverrides && (
               <Button variant="ghost" size="sm" onClick={handleResetAll}>
-                Reset all
+                {t('common:resetAll')}
               </Button>
             )}
             <Tooltip>
@@ -220,7 +220,7 @@ export function SamplerPopover({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Open assistant settings</p>
+                <p>{t('common:openAssistantSettings')}</p>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -241,7 +241,7 @@ export function SamplerPopover({
           </div>
         ) : (
           <div className="text-xs text-muted-foreground px-4 py-3">
-            Pick an assistant above to configure sampling.
+            {t('common:pickAssistant')}
           </div>
         )}
       </PopoverContent>

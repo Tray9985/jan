@@ -19,6 +19,7 @@ import {
   IconMicrophone,
   IconMoon,
   IconAdjustmentsAlt,
+  IconCurrencyDollar,
 } from '@tabler/icons-react'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 
@@ -121,7 +122,8 @@ export const TokenCounter = memo(function TokenCounter({
         ? 'bg-amber-500'
         : 'bg-primary'
 
-  const { inputTokens, outputTokens, modelProps, modelDisplayName } = tokenData
+  const { inputTokens, outputTokens, modelProps, modelDisplayName, cost } =
+    tokenData
   const remaining = Math.max(0, tokenData.maxTokens - totalTokens)
   const showFittedBadge =
     tokenData.fitEnabled &&
@@ -199,7 +201,7 @@ export const TokenCounter = memo(function TokenCounter({
             <IconBrain className="size-4 text-muted-foreground shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium text-foreground">
-                Context window
+                {t('common:contextWindow')}
               </div>
               {modelDisplayName && (
                 <div className="text-[11px] text-muted-foreground truncate">
@@ -269,6 +271,14 @@ export const TokenCounter = memo(function TokenCounter({
               label={t('common:remaining')}
               value={formatExact(remaining)}
             />
+            {typeof cost === 'number' && (
+              <Row
+                icon={<IconCurrencyDollar className="size-3.5" />}
+                label={t('common:cost')}
+                value={`$${cost.toFixed(2)}`}
+                strong
+              />
+            )}
           </div>
 
           {/* Footer: fit + slots + modalities */}
@@ -296,7 +306,7 @@ export const TokenCounter = memo(function TokenCounter({
                   title={t('common:visionInputSupported')}
                 >
                   <IconPhoto className="size-3" />
-                  Vision
+                  {t('common:vision')}
                 </span>
               )}
               {tokenData.modalities?.audio && (
@@ -305,7 +315,7 @@ export const TokenCounter = memo(function TokenCounter({
                   title={t('common:audioInputSupported')}
                 >
                   <IconMicrophone className="size-3" />
-                  Audio
+                  {t('common:audio')}
                 </span>
               )}
             </div>

@@ -9,6 +9,7 @@ import { FontSizeSwitcher } from '@/containers/FontSizeSwitcher'
 import { AccentColorPicker } from '@/containers/AccentColorPicker'
 import { NotificationPositionSwitcher } from '@/containers/NotificationPositionSwitcher'
 import { useInterfaceSettings } from '@/hooks/useInterfaceSettings'
+import { useGeneralSetting } from '@/hooks/useGeneralSetting'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
@@ -22,6 +23,7 @@ function InterfaceSettings() {
   const { t } = useTranslation()
   const { resetInterface, showTokenSpeed, setShowTokenSpeed } =
     useInterfaceSettings()
+  const { tokenCounterCompact, setTokenCounterCompact } = useGeneralSetting()
 
   return (
     <div className="flex flex-col h-svh w-full">
@@ -64,6 +66,16 @@ function InterfaceSettings() {
                   <Switch
                     checked={showTokenSpeed}
                     onCheckedChange={setShowTokenSpeed}
+                  />
+                }
+              />
+              <CardItem
+                title={t('settings:interface.tokenCounterCompact')}
+                description={t('settings:interface.tokenCounterCompactDesc')}
+                actions={
+                  <Switch
+                    checked={tokenCounterCompact}
+                    onCheckedChange={setTokenCounterCompact}
                   />
                 }
               />

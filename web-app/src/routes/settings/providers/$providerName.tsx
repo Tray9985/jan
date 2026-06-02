@@ -541,7 +541,7 @@ function ProviderDetail() {
             displayName: info.displayName || info.name || info.id,
             capabilities: apiCaps.length > 0 ? apiCaps : staticCaps,
             version: '1.0',
-            providerMetadata: info as unknown as Record<string, unknown>,
+            providerMetadata: info.raw,
           }
         })
       }

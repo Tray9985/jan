@@ -553,5 +553,22 @@
   "deleteMessageConfirm": "Are you sure you want to delete this message? This action cannot be undone.",
   "modelSleeping": "Model sleeping",
   "visionInputSupported": "Vision input supported",
-  "audioInputSupported": "Audio input supported"
+  "audioInputSupported": "Audio input supported",
+  "contextWindow": "Context Window",
+  "cost": "Cost",
+  "sampling": "Sampling",
+  "samplingAssistant": "Sampling — {{name}}",
+  "noOverrides": "No overrides — using model defaults.",
+  "availableTools": "Available Tools",
+  "resetAll": "Reset all",
+  "openAssistantSettings": "Open assistant settings",
+  "pickAssistant": "Pick an assistant above to configure sampling.",
+  "addParameter": "Add parameter",
+  "unrecognizedParamHidden": "{{count}} unrecognized parameter{{suffix}} hidden: {{list}}",
+  "paramNotSupported": "Not supported — will be skipped.",
+  "paramNotSupportedStrip": "Not supported — will be stripped on send",
+  "paramMayBeIgnored": "May be ignored by this provider",
+  "removeParam": "Remove {{title}}",
+  "noTunableParams": "No tunable parameters for this provider.",
+  "loadingAssistant": "Loading assistant…"
 }

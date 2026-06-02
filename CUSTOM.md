@@ -18,11 +18,31 @@ Provider API 返回的模型列表，有好看的人类可读名称。应该用�
 
 API 返回的模型信息远不止 ID 和能力标记（还有模型家族、模态、成本、上下文长度等）。这些数据统一存起来，后续做上下文记录等功能时会用到。
 
+`providerMetadata` 现在存储原始 API 响应（而非截断后的 `ProviderModelInfo`），可直接读取 `limit.context`、`cost.input/output` 等字段。
+
 不要为了存这些数据而让现有模型类型膨胀，用独立字段存放即可。
 
 ## 远程 Provider 删除全部模型
 
 Provider 设置页的模型列表头部，本地 Provider 有「删除全部模型」入口，但远程 API Provider 没有。需要为远程 Provider 也加上。
+
+## Token 计数器
+
+### 对所有 Provider 可见
+
+Token 计数器不再限制为 llamacpp 专属。远程 API 模型也显示，上下文长度优先从 `providerMetadata.limit.context` 取（API 返回的原始数据），未配置时回退到模型设置的 `ctx_len`。
+
+### 费用显示
+
+剩余（Remaining）下方增加费用行，格式 `$0.00`。单价从 `providerMetadata.cost` 取（每百万 token 价格），价格为 0 也显示。
+
+### 紧凑模式开关
+
+设置 > 外观页面，在「显示 Token 速度」下方有「紧凑令牌计数器」开关。默认开启（输入框内显示），关闭后显示在输入框下方。
+
+## 移除 Chrome 浏览器按钮
+
+输入栏的 Jan Browser MCP Chrome 图标按钮及其关联逻辑全部移除，用不到。
 
 ## 分支策略
 
@@ -48,7 +68,9 @@ Provider 设置页的模型列表头部，本地 Provider 有「删除全部模�
 - 技术术语不翻译：Claude Code、MCP、JSON、CLI、Token（LLM上下文）、GPU、Vulkan、Top-K
 - 专有名词不翻译：GitHub、Discord、Jan（产品名）、Swagger、API
 - 能力标签可翻译：Vision→视觉、Audio→音频、Reasoning→推理、Tools→工具、Web Search→网页搜索
-- TokenCounter 中 Prompt→输入、Completion→输出、Used→已用
+- TokenCounter 中 Prompt→输入、Completion→输出、Used→已用、Remaining→剩余、Context Window→上下文窗口、Cost→费用
+- Sampling 弹窗辅助文案：Sampling→采样参数、Reset all→全部重置、Add parameter→添加参数
+- 参数区域：No overrides→无自定义覆盖、Not supported→不支持、Available Tools→可用工具
 - 占位符示例值（如 `http://proxy.example.com:8080`）不翻译
 
 ### 修改 locale 文件注意事项

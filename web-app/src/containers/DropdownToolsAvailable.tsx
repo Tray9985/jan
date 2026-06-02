@@ -164,7 +164,7 @@ export default memo(function DropdownToolsAvailable({
         onClick={(e) => e.stopPropagation()}
       >
         <DropDrawerLabel className="flex items-center gap-2 sticky -top-1 z-10 px-4 pl-2 py-1">
-          Available Tools
+          {t('common:availableTools')}
         </DropDrawerLabel>
         <DropDrawerSeparator />
         <div className="max-h-64 overflow-y-auto">
