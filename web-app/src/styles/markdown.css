@@ -14,8 +14,8 @@
   /* Headings */
   :is(h1, h2, h3, h4, h5, h6) {
     font-weight: 600;
-    margin-top: 1em;
-    margin-bottom: 0.5em;
+    margin-top: 0.75em;
+    margin-bottom: 0.35em;
   }
   h1 {
     font-size: var(--text-3xl);
@@ -50,7 +50,7 @@
   /* Paragraphs and text */
   p {
     line-height: 1.6;
-    margin-bottom: 0.5em;
+    margin-bottom: 0.35em;
     &:last-child {
       margin-bottom: 0;
     }
@@ -72,16 +72,23 @@
   ul,
   ol {
     line-height: 1.6;
-    margin-bottom: 1em;
+    margin-bottom: 0.6em;
     padding-left: 1.5em;
   }
 
-  ul {
-    list-style-type: disc;
+  ul,
+  ul ul,
+  ul ul ul,
+  li > ul {
+    list-style-type: disc !important;
   }
 
   ul > li {
-    list-style-type: circle;
+    list-style-type: disc !important;
+  }
+
+  ul > li::marker {
+    color: var(--primary);
   }
 
   ol {
@@ -89,13 +96,13 @@
   }
 
   li {
-    margin-bottom: 0.5em;
+    margin-bottom: 0.25em;
   }
 
   li > ul,
   li > ol {
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
   }
 
   li > ol {
@@ -103,17 +110,21 @@
   }
 
   li > ul {
-    list-style-type: circle;
+    list-style-type: disc !important;
+  }
+
+  li > ul > li::marker {
+    color: var(--primary);
   }
 
   /* Blockquotes */
   blockquote {
     line-height: 1.6;
-    border-left: 4px solid var(--color-accent);
+    border-left: 4px solid var(--primary);
     padding-left: 1em;
     margin-left: 0;
     margin-right: 0;
-    margin-bottom: 1em;
+    margin-bottom: 0.6em;
     opacity: 0.8;
   }
 
@@ -180,8 +191,8 @@
   hr {
     border: 0;
     height: 1px;
-    opacity: 0.2;
-    margin: 2em 0;
+    opacity: 0.5;
+    margin: 0.75em 0;
   }
 
   [data-streamdown="mermaid-block"] {

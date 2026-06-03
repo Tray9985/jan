@@ -81,8 +81,15 @@ function LocalAPIServerContent() {
     () =>
       providers
         .filter((p) => p.provider === 'llamacpp' || p.provider === 'mlx')
-        .flatMap((p) => p.models.map((m) => ({ id: m.id, provider: p.provider }))),
+        .flatMap((p) => p.models.map((m) => ({ id: m.id, name: m.displayName || m.name || m.id, provider: p.provider }))),
     [providers]
+  )
+  const defaultModelName = useMemo(
+    () =>
+      defaultModelLocalApiServer?.model
+        ? localModels.find((m) => m.id === defaultModelLocalApiServer.model)?.name ?? defaultModelLocalApiServer.model
+        : undefined,
+    [localModels, defaultModelLocalApiServer]
   )
 
   const { serverStatus, setServerStatus } = useAppState()
@@ -466,7 +473,7 @@ function LocalAPIServerContent() {
                           className="w-40 justify-between"
                         >
                           <span className="truncate">
-                            {defaultModelLocalApiServer?.model ??
+                            {defaultModelName ??
                               t(
                                 'settings:localApiServer.defaultModelPlaceholder'
                               )}

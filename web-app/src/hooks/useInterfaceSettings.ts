@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { localStorageKey } from '@/constants/localStorage'
-import { useTheme } from './useTheme'
 import {
   getDefaultNotificationPosition,
   isNotificationPosition,
@@ -93,14 +92,12 @@ export const ACCENT_COLORS = [
 export type AccentColorValue = (typeof ACCENT_COLORS)[number]['value']
 const DEFAULT_ACCENT_COLOR: AccentColorValue = 'gray'
 
-const applyAccentColorToDOM = (colorValue: string, isDark: boolean) => {
+const applyAccentColorToDOM = (colorValue: string) => {
   const color = ACCENT_COLORS.find((c) => c.value === colorValue)
   if (!color) return
 
   const root = document.documentElement
-  const sidebarColor = isDark ? color.sidebar.dark : color.sidebar.light
 
-  root.style.setProperty('--sidebar', sidebarColor)
   root.style.setProperty('--primary', color.primary)
 }
 
@@ -160,8 +157,6 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
       return {
         ...defaultState,
         resetInterface: () => {
-          const { isDark } = useTheme.getState()
-
           // Reset font size
           document.documentElement.style.setProperty(
             '--font-size-base',
@@ -169,7 +164,7 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
           )
 
           // Reset accent color preset
-          applyAccentColorToDOM(DEFAULT_ACCENT_COLOR, isDark)
+          applyAccentColorToDOM(DEFAULT_ACCENT_COLOR)
 
           // Update state
           set({
@@ -184,8 +179,7 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
           const colorExists = ACCENT_COLORS.find((c) => c.value === color)
           if (!colorExists) return
 
-          const { isDark } = useTheme.getState()
-          applyAccentColorToDOM(color, isDark)
+          applyAccentColorToDOM(color)
           set({ accentColor: color })
         },
 
@@ -229,12 +223,9 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
             state.fontSize
           )
 
-          // Get the current theme state
-          const { isDark } = useTheme.getState()
-
           // Apply accent color preset
           const accentColorValue = state.accentColor || DEFAULT_ACCENT_COLOR
-          applyAccentColorToDOM(accentColorValue, isDark)
+          applyAccentColorToDOM(accentColorValue)
 
           if (
             !state.notificationPosition ||
@@ -254,13 +245,3 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
     }
   )
 )
-
-// Subscribe to theme changes to update accent color sidebar variant
-let prevIsDark = useTheme.getState().isDark
-useTheme.subscribe((state) => {
-  if (state.isDark !== prevIsDark) {
-    prevIsDark = state.isDark
-    const { accentColor } = useInterfaceSettings.getState()
-    applyAccentColorToDOM(accentColor, state.isDark)
-  }
-})

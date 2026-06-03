@@ -570,5 +570,50 @@
   "paramMayBeIgnored": "May be ignored by this provider",
   "removeParam": "Remove {{title}}",
   "noTunableParams": "No tunable parameters for this provider.",
-  "loadingAssistant": "Loading assistant…"
+  "loadingAssistant": "Loading assistant…",
+  "samplingDesc": {
+    "stream": "Enables real-time response streaming.",
+    "max_context_tokens": "Total token budget (input + output). Older messages are trimmed/compacted to stay within this. 0 disables trimming.",
+    "max_output_tokens": "Maximum tokens the model may generate in one reply. Sent as max_tokens to OpenAI-compatible APIs.",
+    "auto_compact": "When context limit is reached, summarize older messages instead of dropping them. Requires Max Context Tokens to be set.",
+    "temperature": "Controls response randomness.",
+    "top_p": "Nucleus sampling threshold. Higher values allow more diverse word choices.",
+    "top_k": "Sample from the top K most likely tokens. 0 = disabled.",
+    "min_p": "Minimum relative probability for a token to be considered.",
+    "frequency_penalty": "Reduces word repetition based on prior frequency.",
+    "presence_penalty": "Encourages the model to introduce new topics.",
+    "repeat_penalty": "llama.cpp-style multiplicative penalty for repeated tokens. 1.0 = disabled.",
+    "mirostat": "Adaptive perplexity-targeting sampler.",
+    "mirostat_tau": "Target entropy. Lower = more focused.",
+    "mirostat_eta": "Mirostat learning rate.",
+    "grammar": "GBNF grammar to constrain generations.",
+    "json_schema": "JSON schema constraining the output to valid JSON.",
+    "typical_p": "Locally-typical sampling. 1.0 = disabled.",
+    "top_n_sigma": "Filter by standard deviations above the max logit. -1 = off.",
+    "dynatemp_range": "Effective temperature is sampled in [temperature - range, temperature + range]. 0 = off.",
+    "dynatemp_exp": "Shapes the temperature distribution within the range.",
+    "xtc_probability": "Probability of activating the Exclude-Top-Choices sampler.",
+    "xtc_threshold": "Minimum token probability to be eligible for XTC exclusion.",
+    "dry_multiplier": "Don't-Repeat-Yourself penalty multiplier. 0 = disabled.",
+    "dry_base": "Exponential base for penalty growth.",
+    "dry_allowed_length": "Minimum repeated-sequence length before DRY engages.",
+    "dry_penalty_last_n": "Recent-token window DRY scans. -1 = full context, 0 = off.",
+    "ignore_eos": "Continue past the end-of-sequence token."
+  },
+  "samplingHint": {
+    "temperature": "Higher = more varied; 0 = deterministic.",
+    "mirostat": "When enabled, overrides Top K / Top P / Min P."
+  },
+  "samplingGroup": {
+    "mirostat": "Adaptive perplexity-targeting sampler. Overrides Top K / Top P / Min P.",
+    "dry": "Don't-Repeat-Yourself penalty for long repeated sequences.",
+    "xtc": "Exclude-Top-Choices sampler — probabilistically removes high-prob tokens.",
+    "dynatemp": "Sample the effective temperature from a range around the base."
+  },
+  "samplingCategory": {
+    "common": "Common",
+    "penalties": "Penalties",
+    "output": "Output control",
+    "advanced": "Advanced samplers"
+  }
 }

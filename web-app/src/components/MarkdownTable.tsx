@@ -107,10 +107,11 @@ export function MarkdownTable({
   return (
     <div
       ref={wrapperRef}
-      className="my-4 flex flex-col space-y-2"
+      className="my-3 overflow-hidden rounded-lg border border-border"
       data-streamdown="table-wrapper"
     >
-      <div className="flex items-center justify-end">
+      {/* Render table actions */}
+      <div className="flex h-9 items-center justify-end border-b border-border bg-muted/30 px-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -146,7 +147,7 @@ export function MarkdownTable({
       </div>
       <div className="overflow-x-auto">
         <table
-          className={cn('w-full border-collapse border border-border', className)}
+          className={cn('w-full border-collapse', className)}
           data-streamdown="table"
           {...props}
         >

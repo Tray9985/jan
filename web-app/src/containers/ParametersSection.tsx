@@ -184,13 +184,13 @@ function StandaloneRow({
   onChange,
   onRemove,
 }: StandaloneRowProps) {
+  const { t } = useTranslation()
   const def = paramsSettings[paramKey]
   if (!def) return null
   const value = params[paramKey]
   const disabledReason = evaluateDisabled(def, params)
   const unsupported = modelRejected
   const maybeOnly = support?.known && support.supportedBy.length === 0
-  const { t } = useTranslation()
 
   return (
     <div className="space-y-1">
@@ -241,7 +241,9 @@ function StandaloneRow({
         >
           {unsupported
             ? t('common:paramNotSupported')
-            : def.effectHint}
+            : (def.effectHint != null
+              ? t(`common:samplingHint.${def.key}`)
+              : null)}
         </div>
       )}
     </div>
@@ -261,12 +263,13 @@ function GroupBlock({
   onChange,
   onRemoveGroup,
 }: GroupBlockProps) {
+  const { t } = useTranslation()
   return (
     <div className="rounded-md border border-border/60 p-3 space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm font-medium">{group.title}</div>
-          <div className="text-xs text-muted-foreground">{group.description}</div>
+          <div className="text-xs text-muted-foreground">{t(`common:samplingGroup.${group.id}`)}</div>
         </div>
         <Button
           variant="ghost"
@@ -371,7 +374,7 @@ function AddParameterMenu({
           <div key={cat.id}>
             {catIdx > 0 && <DropdownMenuSeparator />}
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {cat.title}
+              {t(`common:samplingCategory.${cat.id}`)}
             </DropdownMenuLabel>
             {entries.map((entry) =>
               entry.kind === 'param' ? (
@@ -392,7 +395,7 @@ function AddParameterMenu({
                       )}
                   </div>
                   <span className="text-xs text-muted-foreground line-clamp-1">
-                    {entry.def.effectHint ?? entry.def.description}
+                    {t(`common:samplingDesc.${entry.def.key}`)}
                   </span>
                 </DropdownMenuItem>
               ) : (
@@ -404,7 +407,7 @@ function AddParameterMenu({
                 >
                   <span className="text-sm">{entry.group.title}</span>
                   <span className="text-xs text-muted-foreground line-clamp-1">
-                    {entry.group.description}
+                    {t(`common:samplingGroup.${entry.group.id}`)}
                   </span>
                 </DropdownMenuItem>
               )

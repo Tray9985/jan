@@ -115,7 +115,7 @@ export async function generateThreadTitle(
         [selectedProvider]: {
           thinking: { type: 'disabled' },
         },
-      } as any,
+      },
     })
 
     return cleanTitle(text)

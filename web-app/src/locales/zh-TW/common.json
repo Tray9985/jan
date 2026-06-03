@@ -572,5 +572,50 @@
   "noTunableParams": "此提供者沒有可調參數。",
   "loadingAssistant": "正在載入助手…",
   "noAssistant": "無助手",
-  "noAssistantsAvailable": "無可用助手"
+  "noAssistantsAvailable": "無可用助手",
+  "samplingDesc": {
+    "stream": "啟用即時串流回應。",
+    "max_context_tokens": "總令牌預算（輸入 + 輸出）。超出時自動裁剪/壓縮舊消息。0 表示禁用。",
+    "max_output_tokens": "模型單次回覆可生成的最大令牌數。以 max_tokens 發送至 OpenAI 相容 API。",
+    "auto_compact": "超出上下文限制時，總結舊消息而非丟棄。需要先設定最大上下文令牌數。",
+    "temperature": "控制回應隨機性。",
+    "top_p": "核採樣閾值。值越高詞彙選擇越多樣。",
+    "top_k": "從最可能的 K 個 Token 中採樣。0 = 禁用。",
+    "min_p": "Token 被考慮的最低相對機率。",
+    "frequency_penalty": "根據出現頻率減少詞彙重複。",
+    "presence_penalty": "鼓勵模型引入新話題。",
+    "repeat_penalty": "llama.cpp 風格乘法懲罰，減少重複 Token。1.0 = 禁用。",
+    "mirostat": "自適應困惑度採樣器。",
+    "mirostat_tau": "目標熵。越低越專注。",
+    "mirostat_eta": "Mirostat 學習率。",
+    "grammar": "GBNF 語法約束生成。",
+    "json_schema": "JSON Schema 約束輸出為合法 JSON。",
+    "typical_p": "局部典型採樣。1.0 = 禁用。",
+    "top_n_sigma": "按最大 Logit 的標準差篩選。-1 = 關閉。",
+    "dynatemp_range": "有效溫度在 [溫度 - 範圍, 溫度 + 範圍] 內採樣。0 = 關閉。",
+    "dynatemp_exp": "控制範圍內溫度分佈的形狀。",
+    "xtc_probability": "激活 XTC 採樣器的機率。",
+    "xtc_threshold": "Token 被 XTC 排除的最低機率。",
+    "dry_multiplier": "DRY 懲罰乘數。0 = 禁用。",
+    "dry_base": "懲罰增長的指數基數。",
+    "dry_allowed_length": "DRY 介入前的最小重複序列長度。",
+    "dry_penalty_last_n": "DRY 掃描的最近 Token 窗口。-1 = 全上下文，0 = 關閉。",
+    "ignore_eos": "越過序列結束 Token 繼續生成。"
+  },
+  "samplingHint": {
+    "temperature": "越高越多樣；0 = 確定輸出。",
+    "mirostat": "啟用後將覆蓋 Top K / Top P / Min P。"
+  },
+  "samplingGroup": {
+    "mirostat": "自適應困惑度採樣器。將覆蓋 Top K / Top P / Min P。",
+    "dry": "DRY 懲罰，防止長序列重複。",
+    "xtc": "XTC 採樣器 — 按機率移除高機率 Token。",
+    "dynatemp": "在基準溫度附近的範圍中採樣有效溫度。"
+  },
+  "samplingCategory": {
+    "common": "常用",
+    "penalties": "懲罰參數",
+    "output": "輸出控制",
+    "advanced": "高級採樣器"
+  }
 }
