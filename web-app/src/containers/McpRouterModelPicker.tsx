@@ -5,17 +5,16 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { cn, getModelDisplayName, isLocalProvider } from '@/lib/utils'
+import { cn, getModelDisplayName } from '@/lib/utils'
 import { IconChevronDown, IconX } from '@tabler/icons-react'
 import ProvidersAvatar from '@/containers/ProvidersAvatar'
 import Capabilities from '@/containers/Capabilities'
 import { isRouterModelSelectable } from '@/lib/mcp-router-model-filter'
+import { ModelBrandIcon } from '@/containers/ModelBrandIcon'
 
 type Entry = {
   model: Model
   providerName: string
-  isLocal: boolean
-  hasApiKey: boolean
 }
 
 export type McpRouterModelPickerProps = {
@@ -65,8 +64,6 @@ export function McpRouterModelPicker({
         entries.push({
           model: m,
           providerName: p.provider,
-          isLocal: !!isLocalProvider(p.provider),
-          hasApiKey: !!p.api_key?.length,
         })
       }
     }
@@ -132,16 +129,7 @@ export function McpRouterModelPicker({
           <span className="flex items-center gap-2 truncate leading-normal">
             {current ? (
               <>
-                <span
-                  className={cn(
-                    'text-[10px] px-1.5 py-0.5 rounded-full shrink-0',
-                    current.isLocal
-                      ? 'bg-emerald-500/10 text-emerald-600'
-                      : 'bg-blue-500/10 text-blue-600'
-                  )}
-                >
-                  {current.providerName}
-                </span>
+                <ModelBrandIcon modelId={current.model.id} size={16} />
                 <span className="truncate" title={current.model.id}>
                   {getModelDisplayName(current.model)}
                 </span>
@@ -225,6 +213,7 @@ export function McpRouterModelPicker({
                             )}
                           >
                             <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <ModelBrandIcon modelId={e.model.id} size={16} />
                               <span
                                 className="text-sm truncate"
                                 title={e.model.id}

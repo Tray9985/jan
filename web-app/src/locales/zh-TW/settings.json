@@ -215,6 +215,7 @@
     "runOnStartupDesc": "Jan 啟動時自動啟動本機 API 服務。",
     "defaultModel": "預設模型",
     "defaultModelDesc": "請求中未指定模型時使用的預設模型。",
+    "defaultModelPlaceholder": "選擇本機模型",
     "swaggerDocs": "Swagger 文件",
     "swaggerDocsDesc": "檢視本機服務的互動式 API 文件。",
     "openDocs": "開啟文件"

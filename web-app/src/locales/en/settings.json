@@ -420,6 +420,7 @@
     "runOnStartupDesc": "Automatically start the local API server when Jan launches.",
     "defaultModel": "Default Model",
     "defaultModelDesc": "The default model used when no model is specified in the request.",
+    "defaultModelPlaceholder": "Select a local model",
     "swaggerDocs": "Swagger Docs",
     "swaggerDocsDesc": "View the interactive API documentation for the local server.",
     "openDocs": "Open Docs"

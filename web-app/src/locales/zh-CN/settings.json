@@ -215,6 +215,7 @@
     "runOnStartupDesc": "Jan 启动时自动启动本地 API 服务。",
     "defaultModel": "默认模型",
     "defaultModelDesc": "请求中未指定模型时使用的默认模型。",
+    "defaultModelPlaceholder": "选择本地模型",
     "swaggerDocs": "Swagger 文档",
     "swaggerDocsDesc": "查看本地服务的交互式 API 文档。",
     "openDocs": "打开文档"

@@ -10,6 +10,14 @@ Provider API 返回的模型列表包含人类可读名称时，界面展示该�
 
 Local API Server 的默认模型选择器也要展示模型名称：优先 `displayName`，其次 `name`，最后才回退到裸 ID。
 
+Local API Server 的默认模型选择器未选择模型时，必须显示本地化占位文案，不能显示 locale key。
+
+MCP 服务的路由模型选择器右侧只显示模型品牌图标和模型名称，不显示 Provider 文案。
+
+## 模型品牌图标
+
+主模型选择器、Provider 模型列表和 MCP 路由模型选择器都使用模型品牌图标，便于区分 OpenAI、Claude、DeepSeek、Qwen、Kimi、Mistral、Grok 等模型家族。
+
 ## 模型能力自动识别
 
 自定义 Provider 的 API 返回每个模型是否支持推理、工具调用、文件附件、温度调节。添加模型到 Provider 时，根据这些 API 返回值自动勾选对应的能力，不需要用户手动选择。
