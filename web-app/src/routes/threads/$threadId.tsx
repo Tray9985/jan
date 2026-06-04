@@ -22,6 +22,7 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from '@/components/ai-elements/conversation'
+import type { StickToBottomContext } from 'use-stick-to-bottom'
 import { invoke } from '@tauri-apps/api/core'
 import { generateId, lastAssistantMessageIsCompleteWithToolCalls } from 'ai'
 import type { UIMessage } from '@ai-sdk/react'
@@ -200,6 +201,9 @@ function ThreadDetail() {
     message: UIMessage
     text: string
   } | null>(null)
+
+  // 获取 Conversation 的 stick-to-bottom 上下文，用于发送消息后主动触发滚动
+  const conversationRef = useRef<StickToBottomContext | null>(null)
 
   // Use the AI SDK chat hook
   const {
@@ -795,6 +799,9 @@ function ThreadDetail() {
         id: messageId,
         metadata: { ...userMessage.metadata, createdAt: new Date() },
       })
+
+      // 发送消息后主动滚动到底部，重置 isAtBottom 状态
+      conversationRef.current?.scrollToBottom()
     },
     [
       sendMessage,
@@ -823,6 +830,9 @@ function ThreadDetail() {
         id: messageId,
         metadata: userMessage.metadata,
       })
+
+      // 发送队列消息后主动滚动到底部，重置 isAtBottom 状态
+      conversationRef.current?.scrollToBottom()
     },
     [sendMessage, threadId, addMessage]
   )
@@ -1030,13 +1040,23 @@ function ThreadDetail() {
   // Handle delete message
   const handleDeleteMessage = useCallback(
     (messageId: string) => {
-      deleteMessage(threadId, messageId)
-      useMessageErrors.getState().clearError(messageId)
+      // 找到被删消息在 chatMessages 中的位置
+      const msgIndex = chatMessages.findIndex((m) => m.id === messageId)
+      if (msgIndex === -1) {
+        deleteMessage(threadId, messageId)
+        useMessageErrors.getState().clearError(messageId)
+        return
+      }
 
-      // Update chat messages for UI
-      const updatedChatMessages = chatMessages.filter(
-        (msg) => msg.id !== messageId
-      )
+      // 删除该消息及其之后的所有后续消息
+      const tailMessages = chatMessages.slice(msgIndex)
+      tailMessages.forEach((msg) => {
+        deleteMessage(threadId, msg.id)
+        useMessageErrors.getState().clearError(msg.id)
+      })
+
+      // 更新 UI 消息列表
+      const updatedChatMessages = chatMessages.slice(0, msgIndex)
       setChatMessages(updatedChatMessages)
     },
     [threadId, deleteMessage, chatMessages, setChatMessages]
@@ -1292,7 +1312,7 @@ function ThreadDetail() {
       <div className="flex flex-1 flex-col h-full overflow-hidden">
         {/* Messages Area */}
         <div className="flex-1 relative">
-          <Conversation className="absolute inset-0 text-start">
+          <Conversation className="absolute inset-0 text-start" contextRef={conversationRef}>
             <ConversationContent
               className={cn('mx-auto w-full md:w-4/5 xl:w-4/6')}
             >

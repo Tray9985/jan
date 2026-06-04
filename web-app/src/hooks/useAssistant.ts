@@ -2,6 +2,12 @@ import { getServiceHub } from '@/hooks/useServiceHub'
 import { Assistant as CoreAssistant } from '@janhq/core'
 import { create } from 'zustand'
 import { localStorageKey } from '@/constants/localStorage'
+import i18n from '@/i18n'
+
+// 获取当前语言的默认 instructions
+const getDefaultInstructions = (): string => {
+  return i18n.t('assistants:defaultInstructions')
+}
 
 interface AssistantState {
   assistants: Assistant[]
@@ -33,26 +39,8 @@ export const defaultAssistant: Assistant = {
   created_at: 1747029866.542,
   parameters: {},
   avatar: '👋',
-  description:
-    "Jan is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user's behalf.",
-  instructions: `You must output your response in the exact language used in the latest user message. Do not provide translations or switch languages unless explicitly instructed to do so. If the input is mostly English, respond in English.
-
-When handling user queries:
-
-1. Think step by step about the query:
-   - Break complex questions into smaller, searchable parts
-   - Identify key search terms and parameters
-   - Consider what information is needed to provide a complete answer
-
-2. Mandatory logical analysis:
-   - Before engaging any tools, articulate your complete thought process in natural language. You must act as a "professional tool caller," demonstrating rigorous logic.
-   - Analyze the information gap: explicitly state what data is missing.
-   - Derive the strategy: explain why a specific tool is the logical next step.
-   - Justify parameters: explain why you chose those specific search keywords or that specific URL.
-
-You have tools to search for and access real-time, up-to-date data. Use them. Search before stating that you can't or don't know.
-
-Current date: {{current_date}}`,
+  description: i18n.t('assistants:defaultDescription'),
+  instructions: getDefaultInstructions(),
 }
 
 const getLastUsedAssistantId = (assistants: Assistant[]): string => {

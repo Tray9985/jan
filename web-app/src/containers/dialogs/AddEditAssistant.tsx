@@ -175,8 +175,8 @@ export default function AddEditAssistant({
         </DialogHeader>
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <label className="text-sm mb-2 inline-block">
+            <div className="relative shrink-0">
+              <label className="text-sm mb-2 inline-block whitespace-nowrap">
                 {t('assistants:emoji')}
               </label>
               <div
@@ -254,9 +254,20 @@ export default function AddEditAssistant({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm mb-2 inline-block">
-              {t('assistants:instructions')}
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm">
+                {t('assistants:instructions')}
+              </label>
+              <button
+                type="button"
+                className="text-sm text-blue-600 hover:text-blue-700"
+                onClick={() =>
+                  setInstructions(t('assistants:defaultInstructions'))
+                }
+              >
+                {t('assistants:restoreDefault')}
+              </button>
+            </div>
             <Textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}

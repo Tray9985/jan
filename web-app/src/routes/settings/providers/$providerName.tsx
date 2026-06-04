@@ -7,6 +7,7 @@ import { cn, getProviderTitle, getModelDisplayName, isLocalProvider } from '@/li
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import Capabilities from '@/containers/Capabilities'
+import { ModelBrandIcon } from '@/containers/ModelBrandIcon'
 import { DynamicControllerSetting } from '@/containers/dynamicControllerSetting'
 import { RenderMarkdown } from '@/containers/RenderMarkdown'
 import { DialogEditModel } from '@/containers/dialogs/EditModel'
@@ -1271,6 +1272,7 @@ function ProviderDetail() {
                         key={modelIndex}
                         title={
                           <div className="flex items-center gap-2">
+                            <ModelBrandIcon modelId={model.id} size={18} />
                             <h1
                               className="font-medium line-clamp-1"
                               title={model.id}

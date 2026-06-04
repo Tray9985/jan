@@ -401,7 +401,7 @@ export function createCustomFetch(
 
     const isLlamacpp500 = keepLlamacppOnly && res.status === 500
 
-    let parsed: { error?: { message?: unknown; [k: string]: unknown } } | null =
+    let parsed: Record<string, unknown> | null =
       null
     const contentType = res.headers.get('content-type') || ''
     if (contentType.includes('json')) {
@@ -412,9 +412,10 @@ export function createCustomFetch(
       }
     }
 
+    const errorObj = parsed?.error as Record<string, unknown> | undefined
     const innerMessage =
-      typeof parsed?.error?.message === 'string'
-        ? (parsed.error.message as string)
+      typeof errorObj?.message === 'string'
+        ? (errorObj.message as string)
         : null
 
     if (isLlamacpp500 && !innerMessage) {
@@ -436,7 +437,52 @@ export function createCustomFetch(
       })
     }
 
-    if (!innerMessage) return res
+    if (!innerMessage) {
+      // 尝试从非标准的错误格式中提取错误消息
+      let fallbackMessage: string | null = null
+
+      if (parsed) {
+        if (typeof parsed.detail === 'string') {
+          fallbackMessage = parsed.detail
+        } else if (typeof parsed.error === 'string') {
+          fallbackMessage = parsed.error as string
+        } else if (typeof parsed.message === 'string') {
+          fallbackMessage = parsed.message
+        } else {
+          // 尝试取 JSON 中第一个字符串值
+          const strings = Object.values(parsed).filter(
+            (v) => typeof v === 'string'
+          )
+          if (strings.length > 0) fallbackMessage = strings[0] as string
+        }
+      }
+
+      // 如果 JSON 解析不到，尝试从纯文本 body 中提取
+      if (!fallbackMessage) {
+        try {
+          const text = await res.clone().text()
+          if (text && text.trim().length > 0 && text.trim().length < 500) {
+            fallbackMessage = text.trim()
+          }
+        } catch {
+          // 读取 body 失败，忽略
+        }
+      }
+
+      if (fallbackMessage) {
+        // 包装为 OpenAI 兼容格式，让 AI SDK 能正确解析
+        const wrappedBody = JSON.stringify({
+          error: { message: fallbackMessage, type: 'upstream_error' },
+        })
+        return new Response(wrappedBody, {
+          status: res.status,
+          statusText: res.statusText,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+
+      return res
+    }
 
     // Sampling-rejection auto-retry: when the upstream complains about an
     // injected parameter (top_k on OpenAI, temp+top_p on Anthropic, etc.),
@@ -467,7 +513,7 @@ export function createCustomFetch(
     if (cleaned === innerMessage) return res
     const nextBody = JSON.stringify({
       ...parsed,
-      error: { ...parsed!.error, message: cleaned },
+      error: { ...(parsed!.error as Record<string, unknown>), message: cleaned },
     })
     return new Response(nextBody, {
       status: res.status,

@@ -14,7 +14,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { route } from '@/constants/routes'
 import { useThreads } from '@/hooks/useThreads'
 import { ModelSetting } from '@/containers/ModelSetting'
-import ProvidersAvatar from '@/containers/ProvidersAvatar'
+import { ModelBrandIcon } from './ModelBrandIcon'
 import { ModelSupportStatus } from '@/containers/ModelSupportStatus'
 import { Fzf } from 'fzf'
 import { localStorageKey } from '@/constants/localStorage'
@@ -474,9 +474,9 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
               type="button"
               className="font-medium cursor-pointer flex items-center gap-1.5 relative z-20 min-w-0"
             >
-              {provider && (
+              {selectedModel?.id && (
                 <div className="shrink-0">
-                  <ProvidersAvatar provider={provider} />
+                  <ModelBrandIcon modelId={selectedModel.id} size={16} />
                 </div>
               )}
               <Tooltip>
@@ -586,8 +586,9 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                         >
                           <div className="flex items-center gap-1 flex-1 min-w-0">
                             <div className="shrink-0 -ml-1">
-                              <ProvidersAvatar
-                                provider={searchableModel.provider}
+                              <ModelBrandIcon
+                                modelId={searchableModel.model.id}
+                                size={16}
                               />
                             </div>
                             <Tooltip>
@@ -634,7 +635,6 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                       {/* Provider header */}
                       <div className="flex items-center justify-between px-2 py-1">
                         <div className="flex items-center gap-1.5">
-                          <ProvidersAvatar provider={providerInfo} />
                           <span className="capitalize text-sm font-medium text-muted-foreground">
                             {getProviderTitle(providerInfo.provider)}
                           </span>
@@ -683,6 +683,10 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                               )}
                             >
                               <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <ModelBrandIcon
+                                  modelId={searchableModel.model.id}
+                                  size={16}
+                                />
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span className="text-sm truncate">

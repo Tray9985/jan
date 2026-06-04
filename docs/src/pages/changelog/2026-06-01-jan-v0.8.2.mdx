@@ -45,6 +45,14 @@ Settings gained a toggle for the automatic app update check. When disabled, Jan 
 - API key inputs now have copy and reveal buttons (a new secret-input component).
 - Transport-level request failures (connection refused, DNS, TLS) now surface a friendly, actionable message instead of a raw error.
 - MLX models are listed in the Local API Server's default model picker.
+- Model pickers and provider model lists now show model-brand avatars, making families such as OpenAI, Claude, DeepSeek, Qwen, Kimi, Mistral, and Grok easier to scan.
+- Non-standard upstream error bodies are normalized into AI SDK-compatible error messages, so provider failures with `detail`, `message`, plain-text, or string `error` fields are easier to read.
+
+**Assistants & Chat**
+
+- Assistant defaults are localized, and the assistant editor can restore the default instructions for the current app language.
+- Sending a message scrolls the conversation to the bottom immediately, keeping the latest user message and response in view.
+- Deleting a message now removes that message and all following messages in the thread, matching the branched-conversation behavior.
 
 **Bug Fixes**
 
