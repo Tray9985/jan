@@ -1755,7 +1755,7 @@ const ChatInput = memo(function ChatInput({
                     {hasMmproj && (
                       <DropdownMenuItem onClick={() => void openImagePicker()}>
                         <IconPhoto size={18} className="text-muted-foreground" />
-                        <span>Add Images</span>
+                        <span>{t('common:addImages')}</span>
                         <input
                           type="file"
                           ref={fileInputRef}
@@ -1797,8 +1797,8 @@ const ChatInput = memo(function ChatInput({
                       )}
                       <span>
                         {ingestingDocs
-                          ? 'Indexing documents…'
-                          : 'Add documents or files'}
+                          ? t('common:indexingDocuments')
+                          : t('common:addDocumentsOrFiles')}
                       </span>
                     </DropdownMenuItem>
                     </DropdownMenuContent>
