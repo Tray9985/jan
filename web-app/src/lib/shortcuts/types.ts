@@ -10,12 +10,16 @@ export enum ShortcutAction {
   TOGGLE_SIDEBAR = 'toggleSidebar',
   GO_TO_SETTINGS = 'goSettings',
   SEARCH = 'search',
+  SWITCH_ASSISTANT = 'switchAssistant',
   ZOOM_IN = 'zoomIn',
   ZOOM_OUT = 'zoomOut',
 }
 
 export interface ShortcutSpec {
   key: string
+  // Extra KeyboardEvent.key values that trigger the same action, for keys whose
+  // emitted value depends on layout or shift state (e.g. '+' arrives as '=').
+  aliasKeys?: string[]
   usePlatformMetaKey?: boolean
   altKey?: boolean
   shiftKey?: boolean

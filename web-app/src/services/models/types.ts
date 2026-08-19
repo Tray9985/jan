@@ -34,6 +34,9 @@ export interface CatalogModel {
   downloads: number
   num_quants?: number
   quants?: ModelQuant[]
+  // MTP draft companions split out of `quants` for display; resolved against
+  // the chosen quant at download time (see lib/mtp.ts).
+  mtpQuants?: ModelQuant[]
   mmproj_models?: MMProjModel[]
   num_mmproj?: number
   safetensors_files?: SafetensorsFile[]
@@ -120,14 +123,16 @@ export interface ModelsService {
     modelSize?: number,
     mmprojPath?: string,
     mmprojSha256?: string,
-    mmprojSize?: number
+    mmprojSize?: number,
+    mtpPath?: string
   ): Promise<void>
   pullModelWithMetadata(
     id: string,
     modelPath: string,
     mmprojPath?: string,
     hfToken?: string,
-    skipVerification?: boolean
+    skipVerification?: boolean,
+    mtpPath?: string
   ): Promise<void>
   abortDownload(id: string): Promise<void>
   pauseDownload(id: string): Promise<void>
@@ -180,4 +185,48 @@ export interface ModelsService {
   ): Promise<'RED' | 'YELLOW' | 'GREEN' | 'GREY'>
   validateGgufFile(filePath: string): Promise<ModelValidationResult>
   getTokensCount(modelId: string, messages: ThreadMessage[]): Promise<number>
+  startEngineSetup(): Promise<void>
+  verifyEmbeddingModel(): Promise<EmbeddingModelReport>
+  verifyGpuOffload(): Promise<GpuOffloadReport>
+}
+
+// Mirrors the llamacpp extension's readiness module across the extension
+// boundary, the same way DeviceList is redeclared for the hardware service.
+export type EmbeddingVectorProblem =
+  | 'missing'
+  | 'empty'
+  | 'nonFinite'
+  | 'degenerate'
+
+export type GpuOffloadReason =
+  | 'noGpuHardware'
+  | 'runtimeUnreachable'
+  | 'missingLibrary'
+
+interface ReadinessReport {
+  status: 'ok' | 'warning'
+  /** Raw technical detail for a disclosure area; never translated. */
+  error?: string
+  /** The engine build cannot run this check at all. */
+  unavailable?: boolean
+  /**
+   * The engine has not finished its own setup, so nothing was concluded. Distinct
+   * from `unavailable`: this one resolves on its own.
+   */
+  pending?: boolean
+}
+
+export interface EmbeddingModelReport extends ReadinessReport {
+  modelId?: string
+  dimension?: number
+  problem?: EmbeddingVectorProblem
+}
+
+export interface GpuOffloadReport extends ReadinessReport {
+  backend: string
+  gpuExpected: boolean
+  engineDeviceCount: number
+  reason?: GpuOffloadReason
+  /** Set only for `missingLibrary`; names are not translatable. */
+  missingLibraries?: string[]
 }

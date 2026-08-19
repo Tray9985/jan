@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 import {
   SparklesIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CheckCircle2Icon,
   CircleDotIcon,
   CircleIcon,
@@ -25,6 +27,8 @@ import {
   useState,
 } from 'react'
 import { Streamdown } from 'streamdown'
+import { useTranslation } from '@/i18n/react-i18next-compat'
+import { formatCompactDuration } from '@/lib/duration'
 import { Shimmer } from './shimmer'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -62,6 +66,8 @@ export type ChainOfThoughtProps = ComponentProps<typeof Collapsible> & {
   isStreaming?: boolean
   /** When true the collapsible auto-collapses (e.g. text content appeared after this CoT group). */
   shouldCollapse?: boolean
+  /** When true the collapsible is forced open and overrides auto-collapse (e.g. a tool is awaiting approval). */
+  forceOpen?: boolean
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
@@ -71,7 +77,8 @@ export const ChainOfThought = memo(
   ({
     className,
     isStreaming = false,
-    shouldCollapse = false,
+    shouldCollapse,
+    forceOpen = false,
     open,
     defaultOpen = true,
     onOpenChange,
@@ -84,19 +91,24 @@ export const ChainOfThought = memo(
       onChange: onOpenChange,
     })
 
-    // Auto-collapse once text content appears after this CoT group
+    // Follow the caller's open intent. forceOpen pins it open (e.g. a tool
+    // awaiting approval). When shouldCollapse is a boolean, track it two-way so
+    // the trace opens as a step gains content and collapses when it has none or
+    // the answer begins; when undefined the caller isn't controlling collapse,
+    // so defaultOpen / manual toggle is left untouched. Re-applied only on
+    // input change, preserving a manual toggle between changes.
     useEffect(() => {
-      if (shouldCollapse) {
-        setIsOpen(false)
-      }
-    }, [shouldCollapse, setIsOpen])
+      if (forceOpen) setIsOpen(true)
+      else if (shouldCollapse === true) setIsOpen(false)
+      else if (shouldCollapse === false) setIsOpen(true)
+    }, [forceOpen, shouldCollapse, setIsOpen])
 
     const handleOpenChange = (newOpen: boolean) => {
       setIsOpen(newOpen)
     }
 
     const [startTime, setStartTime] = useState<number | null>(null)
-    const [duration, setDuration] = useState<number | undefined>(undefined)
+    const [elapsedMs, setElapsedMs] = useState<number | undefined>(undefined)
 
     useEffect(() => {
       if (isStreaming) {
@@ -104,10 +116,20 @@ export const ChainOfThought = memo(
           setStartTime(Date.now())
         }
       } else if (startTime !== null) {
-        setDuration(Math.ceil((Date.now() - startTime) / MS_IN_S))
+        // Accumulated, not replaced: an agentic turn reasons, answers, then
+        // reasons again, and each window is part of the same trace.
+        const window = Date.now() - startTime
+        setElapsedMs((previous) => (previous ?? 0) + window)
         setStartTime(null)
       }
     }, [isStreaming, startTime])
+
+    // Rounded up to at least a second: a trace that begins and ends inside one
+    // tick still ran, and a zero would read as "still going" below.
+    const duration =
+      elapsedMs === undefined
+        ? undefined
+        : Math.max(1, Math.ceil(elapsedMs / MS_IN_S))
 
     const contextValue = useMemo(
       () => ({ isStreaming, isOpen, setIsOpen, duration }),
@@ -117,7 +139,12 @@ export const ChainOfThought = memo(
     return (
       <ChainOfThoughtContext.Provider value={contextValue}>
         <Collapsible
-          className={cn('not-prose', className)}
+          className={cn(
+            'not-prose rounded-2xl transition-colors',
+            // Card frame only while expanded; collapsed shows a bare summary row.
+            'data-[state=open]:border data-[state=open]:border-border/50 data-[state=open]:bg-main-view-fg/2 data-[state=open]:p-3',
+            className
+          )}
           onOpenChange={handleOpenChange}
           open={isOpen}
           {...props}
@@ -135,40 +162,108 @@ export type ChainOfThoughtHeaderProps = ComponentProps<
   typeof CollapsibleTrigger
 > & {
   title?: string
+  /** Label shown while streaming, e.g. "Working...". Defaults to "Reasoning...". */
+  streamingLabel?: string
+  /** Which past-tense phrasing to use once the trace is complete. */
+  completedVariant?: 'thought' | 'worked'
+  /**
+   * Turns the header into a view switch instead of a collapse toggle: the
+   * chevron points the way it navigates, e.g. `right` to drill into the full
+   * timeline and `left` to come back.
+   */
+  navDirection?: 'left' | 'right'
+  onNavigate?: () => void
 }
 
+const COMPLETED_KEYS = {
+  thought: {
+    aWhile: 'chat:reasoning.thoughtForAWhile',
+    withDuration: 'chat:reasoning.thoughtFor',
+  },
+  worked: {
+    aWhile: 'chat:reasoning.workedForAWhile',
+    withDuration: 'chat:reasoning.workedFor',
+  },
+} as const
+
 export const ChainOfThoughtHeader = memo(
-  ({ className, title, children, ...props }: ChainOfThoughtHeaderProps) => {
+  ({
+    className,
+    title,
+    streamingLabel,
+    completedVariant = 'thought',
+    navDirection,
+    onNavigate,
+    children,
+    ...props
+  }: ChainOfThoughtHeaderProps) => {
+    const { t } = useTranslation()
     const { isStreaming, isOpen, duration } = useChainOfThought()
 
+    const keys = COMPLETED_KEYS[completedVariant]
+    const completedLabel =
+      duration === undefined
+        ? t(keys.aWhile)
+        : t(keys.withDuration, { duration: formatCompactDuration(duration, t) })
+
+    const rowClassName = cn(
+      'flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground',
+      className
+    )
+
+    if (children) {
+      return (
+        <CollapsibleTrigger className={rowClassName} {...props}>
+          {children}
+        </CollapsibleTrigger>
+      )
+    }
+
+    const label = (
+      <>
+        <SparklesIcon className="size-4" />
+        {isStreaming ? (
+          <Shimmer duration={1}>
+            {streamingLabel ?? t('chat:reasoning.label')}
+          </Shimmer>
+        ) : title ? (
+          <p>{title}</p>
+        ) : (
+          <p>{completedLabel}</p>
+        )}
+      </>
+    )
+
+    if (navDirection) {
+      const navLabel =
+        navDirection === 'right'
+          ? t('chat:reasoning.showFullTimeline')
+          : t('chat:reasoning.showCurrentStep')
+      return (
+        <button
+          type="button"
+          className={rowClassName}
+          onClick={onNavigate}
+          aria-label={navLabel}
+          title={navLabel}
+          {...props}
+        >
+          {navDirection === 'left' && <ChevronLeftIcon className="size-4" />}
+          {label}
+          {navDirection === 'right' && <ChevronRightIcon className="size-4" />}
+        </button>
+      )
+    }
+
     return (
-      <CollapsibleTrigger
-        className={cn(
-          'flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground',
-          className
-        )}
-        {...props}
-      >
-        {children ?? (
-          <>
-            <SparklesIcon className="size-4" />
-            {isStreaming || duration === 0 ? (
-              <Shimmer duration={1}>Reasoning...</Shimmer>
-            ) : title ? (
-              <p>{title}</p>
-            ) : duration === undefined ? (
-              <p>Thought for a few seconds</p>
-            ) : (
-              <p>Thought for {duration} seconds</p>
-            )}
-            <ChevronDownIcon
-              className={cn(
-                'size-4 transition-transform',
-                isOpen ? 'rotate-180' : 'rotate-0'
-              )}
-            />
-          </>
-        )}
+      <CollapsibleTrigger className={rowClassName} {...props}>
+        {label}
+        <ChevronDownIcon
+          className={cn(
+            'size-4 transition-transform',
+            isOpen ? 'rotate-180' : 'rotate-0'
+          )}
+        />
       </CollapsibleTrigger>
     )
   }
@@ -190,9 +285,7 @@ export const ChainOfThoughtContent = memo(
       )}
       {...props}
     >
-      <div className="ml-2 pl-4 border-l-2 border-dotted space-y-3">
-        {children}
-      </div>
+      <div className="space-y-3">{children}</div>
     </CollapsibleContent>
   )
 )

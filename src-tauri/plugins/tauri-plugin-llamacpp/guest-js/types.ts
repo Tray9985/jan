@@ -80,6 +80,7 @@ export type LlamacppConfig = {
   cache_reuse: number
   swa_full: boolean
   keep: number
+  kv_unified: string
 }
 
 export type ModelPlan = {
@@ -110,6 +111,16 @@ export interface ModelConfig {
   mmproj_sha256?: string
   mmproj_size_bytes?: number
   embedding?: boolean
+  template_kwargs?: TemplateKwarg[]
+  template_kwargs_check_v?: number
+}
+
+export type TemplateKwargType = 'boolean' | 'number' | 'string'
+
+export interface TemplateKwarg {
+  name: string
+  type: TemplateKwargType
+  default: boolean | number | string
 }
 
 export interface EmbeddingResponse {
@@ -193,4 +204,23 @@ export interface SettingUpdateResult {
   needs_backend_installation: boolean
   version?: string
   backend?: string
+}
+
+/** One ggml GPU library that failed to load, with the cause. */
+export interface LoadProbeFailure {
+  library: string
+  /** Raw loader message. */
+  error: string
+  /** Names parsed out of `error`, for install advice. */
+  missing_libraries: string[]
+}
+
+export interface LoadProbeResult {
+  loaded: string[]
+  failures: LoadProbeFailure[]
+  /**
+   * The probe could not run, so an empty `failures` list must not be read as a
+   * healthy backend.
+   */
+  inconclusive: boolean
 }

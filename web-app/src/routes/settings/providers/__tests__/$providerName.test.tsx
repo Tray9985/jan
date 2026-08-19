@@ -97,7 +97,10 @@ const h = vi.hoisted(() => {
   const providersSvc = {
     getProviders: vi.fn().mockResolvedValue([]),
     updateSettings: vi.fn().mockResolvedValue(undefined),
-    fetchModelsFromProvider: vi.fn().mockResolvedValue(['gpt-4', 'gpt-5']),
+    fetchModelsFromProvider: vi.fn().mockResolvedValue([
+      { id: 'gpt-4' },
+      { id: 'gpt-5' },
+    ]),
     fetch: vi.fn(() =>
       vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: 'OK' })
     ),
@@ -171,6 +174,10 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/i18n/react-i18next-compat', () => ({
   useTranslation: () => ({ t: (k: string) => k }),
+}))
+
+vi.mock('@/containers/ModelBrandIcon', () => ({
+  ModelBrandIcon: () => <span data-testid="model-brand-icon" />,
 }))
 
 vi.mock('@/containers/HeaderPage', () => ({
@@ -383,7 +390,10 @@ beforeEach(() => {
   // Reset services to default behavior
   h.providersSvc.getProviders = vi.fn().mockResolvedValue([])
   h.providersSvc.updateSettings = vi.fn().mockResolvedValue(undefined)
-  h.providersSvc.fetchModelsFromProvider = vi.fn().mockResolvedValue(['gpt-4', 'gpt-5'])
+  h.providersSvc.fetchModelsFromProvider = vi.fn().mockResolvedValue([
+    { id: 'gpt-4' },
+    { id: 'gpt-5' },
+  ])
   h.providersSvc.fetch = vi.fn(() =>
     vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: 'OK' })
   )
@@ -454,7 +464,7 @@ describe('ProviderDetail route', () => {
       renderComponent()
       expect(screen.getByTestId('import-vision')).toBeInTheDocument()
       expect(screen.getByText('settings:checkForBackendUpdates')).toBeInTheDocument()
-      expect(screen.getByText('Install Backend from File')).toBeInTheDocument()
+      expect(screen.getByText('settings:installBackendFromFile')).toBeInTheDocument()
     })
   })
 
@@ -621,7 +631,9 @@ describe('ProviderDetail route', () => {
     })
 
     it('refresh shows "no new models" toast when all models already exist', async () => {
-      h.providersSvc.fetchModelsFromProvider = vi.fn().mockResolvedValue(['gpt-4'])
+      h.providersSvc.fetchModelsFromProvider = vi.fn().mockResolvedValue([
+        { id: 'gpt-4' },
+      ])
       renderComponent()
       const addModel = screen.getByTestId('add-model')
       const refreshBtn = addModel.parentElement?.querySelector('button') as HTMLButtonElement
@@ -721,7 +733,7 @@ describe('ProviderDetail route', () => {
     it('install-from-file no-ops cleanly when dialog returns null', async () => {
       renderComponent()
       await act(async () => {
-        fireEvent.click(screen.getByText('Install Backend from File'))
+        fireEvent.click(screen.getByText('settings:installBackendFromFile'))
       })
       // no toast fired because file selection was cancelled
       expect(h.toastSuccess).not.toHaveBeenCalled()
@@ -732,7 +744,7 @@ describe('ProviderDetail route', () => {
       h.dialogSvc.open = vi.fn().mockResolvedValue('/some/path/My Backend.tar.gz')
       renderComponent()
       await act(async () => {
-        fireEvent.click(screen.getByText('Install Backend from File'))
+        fireEvent.click(screen.getByText('settings:installBackendFromFile'))
       })
       await waitFor(() => {
         expect(h.backendUpdater.installBackend).toHaveBeenCalledWith(
@@ -747,7 +759,7 @@ describe('ProviderDetail route', () => {
       h.backendUpdater.installBackend = vi.fn().mockRejectedValue(new Error('install fail'))
       renderComponent()
       await act(async () => {
-        fireEvent.click(screen.getByText('Install Backend from File'))
+        fireEvent.click(screen.getByText('settings:installBackendFromFile'))
       })
       await waitFor(() => {
         expect(h.toastError).toHaveBeenCalled()

@@ -1,5 +1,17 @@
 {
   "addProvider": "新增提供者",
   "addOpenAIProvider": "新增 OpenAI 提供者",
-  "enterNameForProvider": "輸入提供者名稱"
+  "enterNameForProvider": "輸入提供者名稱",
+  "apiTypeLabel": "API 格式",
+  "apiTypeOpenAI": "OpenAI 兼容",
+  "apiTypeAnthropic": "Anthropic 兼容",
+  "baseUrlLabel": "基础 URL",
+  "baseUrlPlaceholder": "https://your-endpoint/v1",
+  "baseUrlPlaceholderAnthropic": "https://api.anthropic.com/v1",
+  "apiKeyLabel": "API Key",
+  "apiKeyPlaceholder": "貼貼您的 API Key",
+  "invalidBaseUrl": "基础 URL 必须是有效的 http(s) URL",
+  "globalSettings": "全局設定",
+  "stripReasoning": "從內容脈絡中移除推理內容",
+  "stripReasoningDesc": "重新發送历史记錄前，移除所有 Provider 中先前轮次的思考和推理內容。這样可提高本地模型的 KV 快取復用率，但部分模型（例如新版 Qwen）建議保留這些內容以改善多轮推理。"
 }

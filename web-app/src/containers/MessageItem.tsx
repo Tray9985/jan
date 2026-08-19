@@ -1,57 +1,43 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { memo, useState, useCallback, useEffect } from 'react'
+import { memo, useState, useCallback, useEffect, useMemo } from 'react'
 import type { UIMessage, ChatStatus } from 'ai'
 import { RenderMarkdown } from './RenderMarkdown'
 import { cn } from '@/lib/utils'
-import { twMerge } from 'tailwind-merge'
+import { ChainOfThoughtGroup } from './message/ChainOfThoughtGroup'
 import {
-  ChainOfThought,
-  ChainOfThoughtContent,
-  ChainOfThoughtHeader,
-} from '@/components/ai-elements/chain-of-thought'
-import { Streamdown } from 'streamdown'
-import {
-  Tool,
-  ToolApprovalActions,
-  ToolContent,
-  ToolHeader,
-  ToolInput,
-  ToolOutput,
-} from '@/components/ai-elements/tool'
+  CHAT_STATUS,
+  CONTENT_TYPE,
+  type MessagePartLike,
+  type PartEntry,
+} from './message/types'
 import { CopyButton } from './CopyButton'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import { formatDate } from '@/utils/formatDate'
 import { useModelProvider } from '@/hooks/useModelProvider'
+import { useInterfaceSettings } from '@/hooks/useInterfaceSettings'
 import { useMessageErrors } from '@/stores/message-errors'
 import {
   IconRefresh,
+  IconPlayerPlay,
   IconPaperclip,
-  IconArrowDown,
   IconAlertTriangle,
+  IconChevronLeft,
+  IconChevronRight,
 } from '@tabler/icons-react'
 import { EditMessageDialog } from '@/containers/dialogs/EditMessageDialog'
 import { DeleteMessageDialog } from '@/containers/dialogs/DeleteMessageDialog'
 import TokenSpeedIndicator from '@/containers/TokenSpeedIndicator'
 import { extractFilesFromPrompt, FileMetadata } from '@/lib/fileMetadata'
-import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { PromptProgress } from '@/components/PromptProgress'
 import { useServiceHub } from '@/hooks/useServiceHub'
+import { useToolApprovalRequests } from '@/hooks/useToolApprovalRequests'
 import { parseCitationsFromToolOutput } from '@/lib/citation-parser'
-import type { RagCitation } from '@/components/Citations'
+import type { RagCitation, WebCitation } from '@/components/Citations'
 import { useGroundingStore } from '@/stores/grounding-store'
+import { useWebCitationStore } from '@/stores/web-citation-store'
+import { WebSourcesRow } from '@/components/WebSourcesRow'
 import { injectCitationMarkers } from '@/lib/grounding'
-import { useTranslation } from '@/i18n/react-i18next-compat'
-
-const CHAT_STATUS = {
-  STREAMING: 'streaming',
-  SUBMITTED: 'submitted',
-} as const
-
-const CONTENT_TYPE = {
-  TEXT: 'text',
-  FILE: 'file',
-  REASONING: 'reasoning',
-} as const
 
 export type MessageItemProps = {
   message: UIMessage
@@ -63,10 +49,11 @@ export type MessageItemProps = {
   onReasoningScroll?: () => void
   onReasoningScrollToBottom?: () => void
   onRegenerate?: (messageId: string) => void
+  onContinue?: (messageId: string) => void
   onEdit?: (messageId: string, newText: string) => void
   onDelete?: (messageId: string) => void
-  assistant?: { avatar?: React.ReactNode; name?: string }
-  showAssistant?: boolean
+  versionInfo?: { index: number; count: number }
+  onSwitchVersion?: (messageId: string, dir: -1 | 1) => void
   isAnimating?: boolean
   hideActions?: boolean
 }
@@ -84,13 +71,17 @@ export const MessageItem = memo(
     onReasoningScroll,
     onReasoningScrollToBottom,
     onRegenerate,
+    onContinue,
     onEdit,
     onDelete,
+    versionInfo,
+    onSwitchVersion,
   }: MessageItemProps) => {
+    const { t } = useTranslation()
     const selectedModel = useModelProvider((state) => state.selectedModel)
+    const coloredUserBubble = useInterfaceSettings((s) => s.coloredUserBubble)
     const metadata = message.metadata as Record<string, unknown> | undefined
     const messageError = useMessageErrors((s) => s.errors[message.id])
-    const { t } = useTranslation()
     const createdAt = (metadata?.createdAt as Date) ?? new Date()
     const [previewImage, setPreviewImage] = useState<{
       url: string
@@ -101,6 +92,12 @@ export const MessageItem = memo(
     const handleRegenerate = useCallback(() => {
       onRegenerate?.(message.id)
     }, [onRegenerate, message.id])
+
+    const handleContinue = useCallback(() => {
+      onContinue?.(message.id)
+    }, [onContinue, message.id])
+
+    const isStopped = metadata?.stopped === true
 
     const handleEdit = useCallback(
       (newText: string) => {
@@ -142,22 +139,44 @@ export const MessageItem = memo(
       })
     }, [isLastMessage, message.role, message.parts])
 
+    const pendingApprovals = useToolApprovalRequests((s) => s.pending)
+    const awaitingApproval = useMemo(() => {
+      if (!hasPendingToolCall) return false
+      return message.parts.some((part) => {
+        const toolCallId = (part as { toolCallId?: string }).toolCallId
+        return Boolean(toolCallId && pendingApprovals[toolCallId])
+      })
+    }, [hasPendingToolCall, message.parts, pendingApprovals])
+
     const isStreaming =
       (isLastMessage &&
         (status === CHAT_STATUS.STREAMING ||
           status === CHAT_STATUS.SUBMITTED)) ||
       hasPendingToolCall
 
-    const ragCitations = useMemo<RagCitation[]>(() => {
-      if (message.role !== 'assistant') return []
+    // Aggregate RAG citations in part order and record each rag tool part's
+    // base offset, so its card numbers/anchors continue the same global
+    // sequence the inline superscript markers use.
+    const { ragCitations, citationOffsets, webCitations } = useMemo(() => {
       const out: RagCitation[] = []
-      for (const part of message.parts as any[]) {
-        if (!part.type?.startsWith('tool-')) continue
-        if (part.state !== 'output-available') continue
-        const parsed = parseCitationsFromToolOutput(part.output)
-        if (parsed?.kind === 'rag') out.push(...parsed.citations)
+      const web: WebCitation[] = []
+      const offsets = new Map<number, number>()
+      if (message.role === 'assistant') {
+        const parts = message.parts as any[]
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i]
+          if (!part.type?.startsWith('tool-')) continue
+          if (part.state !== 'output-available') continue
+          const parsed = parseCitationsFromToolOutput(part.output)
+          if (parsed?.kind === 'rag') {
+            offsets.set(i, out.length)
+            out.push(...parsed.citations)
+          } else if (parsed?.kind === 'web') {
+            web.push(...parsed.citations)
+          }
+        }
       }
-      return out
+      return { ragCitations: out, citationOffsets: offsets, webCitations: web }
     }, [message.parts, message.role])
 
     const serviceHub = useServiceHub()
@@ -191,6 +210,12 @@ export const MessageItem = memo(
       ensureGrounding,
       serviceHub,
     ])
+
+    const setWebCitations = useWebCitationStore((s) => s.setForMessage)
+    useEffect(() => {
+      if (!webCitations.length) return
+      setWebCitations(message.id, webCitations)
+    }, [webCitations, message.id, setWebCitations])
 
     // Extract file metadata from message text (for user messages with attachments)
     const attachedFiles = useMemo(() => {
@@ -246,7 +271,14 @@ export const MessageItem = memo(
         <div key={`${message.id}-${partIndex}`} className="w-full">
           {message.role === 'user' ? (
             <div className="flex justify-end w-full h-full text-start wrap-break-word whitespace-normal">
-              <div className="bg-primary relative text-primary-foreground p-2 rounded-md inline-block max-w-[80%]">
+              <div
+                className={cn(
+                  'relative p-2 rounded-md inline-block max-w-[80%]',
+                  coloredUserBubble
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-foreground'
+                )}
+              >
                 {/* Show attached files if any */}
                 {attachedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -298,18 +330,11 @@ export const MessageItem = memo(
       )
     }
 
-    const renderFilePart = (
-      part: {
-        type: 'file'
-        filename?: string
-        url?: string
-        mediaType?: string
-      },
-      partIndex: number
-    ) => {
+    const renderFilePart = (part: MessagePartLike, partIndex: number) => {
       const isImage = part.mediaType?.startsWith('image/')
       const isAudio =
         part.mediaType === 'audio/wav' || part.mediaType === 'audio/mpeg'
+      const isVideo = part.mediaType?.startsWith('video/')
 
       if (isAudio && part.url) {
         const justify =
@@ -323,6 +348,23 @@ export const MessageItem = memo(
               controls
               src={part.url}
               className="max-w-[80%] rounded-md"
+            />
+          </div>
+        )
+      }
+
+      if (isVideo && part.url) {
+        const justify =
+          message.role === 'user' ? 'justify-end' : 'justify-start'
+        return (
+          <div
+            key={`${message.id}-${partIndex}`}
+            className={`flex ${justify} w-full my-2`}
+          >
+            <video
+              controls
+              src={part.url}
+              className="max-w-[80%] max-h-80 rounded-md border"
             />
           </div>
         )
@@ -368,180 +410,96 @@ export const MessageItem = memo(
       return null
     }
 
-    const renderToolInline = (part: any, partIndex: number) => {
-      if (!part.type.startsWith('tool-') || !('state' in part)) {
-        return null
-      }
-
-      const toolName = part.type.split('-').slice(1).join('-')
-      return (
-        <Tool
-          key={`${message.id}-${partIndex}`}
-          state={part.state}
-          toolCallId={part.toolCallId}
-          messageId={message.id}
-          className="mb-1"
-        >
-          <ToolHeader
-            title={toolName}
-            type={`tool-${toolName}` as `tool-${string}`}
-            state={part.state}
-          />
-          <ToolContent title={toolName}>
-            {part.input && <ToolInput input={part.input} />}
-            <ToolApprovalActions />
-            {part.output && (
-              <ToolOutput
-                output={part.output}
-                resolver={(input) => Promise.resolve(input)}
-                errorText={undefined}
-              />
-            )}
-            {part.state === 'output-error' && (
-              <ToolOutput
-                output={undefined}
-                errorText={part.error || part.errorText || 'Tool execution failed'}
-                resolver={(input) => Promise.resolve(input)}
-              />
-            )}
-          </ToolContent>
-        </Tool>
-      )
-    }
-
-    // Group consecutive reasoning + tool parts into a single CoT block.
-    // Empty text parts and step-start markers (inserted by the AI SDK during
-    // multi-step tool use) are absorbed so they don't split the group.
-    const isCotPart = (part: any) =>
-      part.type === CONTENT_TYPE.REASONING ||
-      part.type.startsWith('tool-') ||
-      part.type === 'step-start' ||
-      (part.type === CONTENT_TYPE.TEXT && (!part.text || part.text.trim() === ''))
-
-    type PartEntry = { part: any; index: number }
-
-    const renderCotGroup = (
-      entries: PartEntry[],
-      groupKey: string,
-      hasFollowingContent: boolean
-    ) => {
-      const hasReasoning = entries.some(
-        (e) => e.part.type === CONTENT_TYPE.REASONING
-      )
-
-      // No reasoning in this group — render tool parts directly, no CoT wrapper
-      if (!hasReasoning) {
-        return entries.map(({ part, index: partIndex }) =>
-          renderToolInline(part, partIndex)
-        )
-      }
-
-      const lastEntryIndex = entries[entries.length - 1].index
-      const groupIsStreaming =
-        isStreaming && lastEntryIndex === message.parts.length - 1
-
-      return (
-        <ChainOfThought
-          key={groupKey}
-          className="w-full text-muted-foreground"
-          isStreaming={groupIsStreaming}
-          shouldCollapse={hasFollowingContent}
-          defaultOpen={true}
-        >
-          <ChainOfThoughtHeader />
-          <ChainOfThoughtContent>
-            {entries.map(({ part, index: partIndex }) => {
-              if (part.type === CONTENT_TYPE.REASONING) {
-                const isLastMsgPart =
-                  partIndex === message.parts.length - 1
-                const partIsStreaming = isStreaming && isLastMsgPart
-
-                return (
-                  <div
-                    key={`${message.id}-r-${partIndex}`}
-                    className="relative"
-                  >
-                    {partIsStreaming && (
-                      <div className="absolute top-0 left-0 right-0 h-8 bg-linear-to-br from-neutral-50 mask-t-from-98% dark:from-background to-transparent pointer-events-none z-10" />
-                    )}
-                    <div
-                      ref={partIsStreaming ? reasoningContainerRef : null}
-                      onScroll={
-                        partIsStreaming ? onReasoningScroll : undefined
-                      }
-                      className={twMerge(
-                        'w-full overflow-auto relative',
-                        partIsStreaming
-                          ? 'max-h-64 opacity-70 mt-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'
-                          : 'h-auto opacity-100'
-                      )}
-                    >
-                      <Streamdown
-                        animate={true}
-                        animationDuration={500}
-                      >
-                        {part.text}
-                      </Streamdown>
-                    </div>
-                    {partIsStreaming && !isReasoningAtBottom && (
-                      <Button
-                        className="absolute bottom-2 left-[50%] translate-x-[-50%] rounded-full size-7 z-10"
-                        onClick={onReasoningScrollToBottom}
-                        size="icon"
-                        type="button"
-                        variant="outline"
-                      >
-                        <IconArrowDown className="size-3" />
-                      </Button>
-                    )}
-                  </div>
-                )
-              }
-
-              // Tool part inside CoT
-              return renderToolInline(part, partIndex)
-            })}
-          </ChainOfThoughtContent>
-        </ChainOfThought>
-      )
-    }
-
     const renderedParts = useMemo(() => {
+      const parts = message.parts as MessagePartLike[]
       const elements: React.ReactNode[] = []
-      let cotBuffer: PartEntry[] = []
+      const isCotPart = (t: string) =>
+        t === CONTENT_TYPE.REASONING || t.startsWith('tool-')
 
+      // Walk parts sequentially and flush the reasoning/tool trace whenever a
+      // non-empty answer (text/file) interrupts it, so content emitted between
+      // two reasoning blocks renders as a normal message.
+      let cotEntries: PartEntry[] = []
+      let groupSeq = 0
       const flushCot = (hasFollowing: boolean) => {
-        if (cotBuffer.length === 0) return
-        const key = `${message.id}-cot-${cotBuffer[0].index}`
-        elements.push(renderCotGroup(cotBuffer, key, hasFollowing))
-        cotBuffer = []
+        if (cotEntries.length === 0) return
+        elements.push(
+          <ChainOfThoughtGroup
+            key={`${message.id}-cot-${groupSeq++}`}
+            entries={cotEntries}
+            messageId={message.id}
+            totalParts={parts.length}
+            isStreaming={isStreaming}
+            hasFollowingContent={hasFollowing}
+            awaitingApproval={awaitingApproval}
+            citationOffsets={citationOffsets}
+            reasoningContainerRef={reasoningContainerRef}
+            isReasoningAtBottom={isReasoningAtBottom}
+            onReasoningScroll={onReasoningScroll}
+            onReasoningScrollToBottom={onReasoningScrollToBottom}
+          />
+        )
+        cotEntries = []
       }
 
-      for (let i = 0; i < message.parts.length; i++) {
-        const part = message.parts[i] as any
-        if (isCotPart(part)) {
-          cotBuffer.push({ part, index: i })
-        } else {
-          flushCot(true) // text/file follows → collapse the CoT
-          switch (part.type) {
-            case CONTENT_TYPE.TEXT:
-              elements.push(
-                renderTextPart(part as { type: 'text'; text: string }, i)
-              )
-              break
-            case CONTENT_TYPE.FILE:
-              elements.push(renderFilePart(part as any, i))
-              break
-            default:
-              break
-          }
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i]
+        const t = part.type
+        if (isCotPart(t)) {
+          cotEntries.push({ part, index: i })
+          continue
+        }
+        if (t === CONTENT_TYPE.TEXT) {
+          if (!part.text || part.text.trim() === '') continue
+          flushCot(true)
+          elements.push(
+            renderTextPart(part as { type: 'text'; text: string }, i)
+          )
+          continue
+        }
+        if (t === CONTENT_TYPE.FILE) {
+          flushCot(true)
+          elements.push(renderFilePart(part, i))
         }
       }
-      flushCot(false) // end of message, no following content → keep open
-
+      flushCot(false)
       return elements
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [message.parts, isStreaming, isReasoningAtBottom, grounding])
+    }, [
+      message.parts,
+      isStreaming,
+      isReasoningAtBottom,
+      grounding,
+      awaitingApproval,
+      citationOffsets,
+    ])
+
+    const versionNav =
+      versionInfo && versionInfo.count > 1 && onSwitchVersion ? (
+        <div className="flex items-center gap-0.5 text-muted-foreground">
+          <button
+            type="button"
+            className="hover:text-foreground disabled:opacity-40"
+            disabled={versionInfo.index <= 1}
+            onClick={() => onSwitchVersion(message.id, -1)}
+            title="Previous version"
+          >
+            <IconChevronLeft size={14} />
+          </button>
+          <span className="tabular-nums">
+            {versionInfo.index}/{versionInfo.count}
+          </span>
+          <button
+            type="button"
+            className="hover:text-foreground disabled:opacity-40"
+            disabled={versionInfo.index >= versionInfo.count}
+            onClick={() => onSwitchVersion(message.id, 1)}
+            title="Next version"
+          >
+            <IconChevronRight size={14} />
+          </button>
+        </div>
+      ) : null
 
     return (
       <div
@@ -554,10 +512,17 @@ export const MessageItem = memo(
         {/* Render message parts */}
         {renderedParts}
 
+        {message.role === 'assistant' && !isStreaming && webCitations.length > 0 && (
+          <WebSourcesRow citations={webCitations} />
+        )}
+
         {isLastMessage &&
           message.role === 'assistant' &&
+          !awaitingApproval &&
           (hasPendingToolCall || status === CHAT_STATUS.SUBMITTED) && (
-            <PromptProgress />
+            <div className="mt-2">
+              <PromptProgress hideIdle={hasPendingToolCall} />
+            </div>
           )}
 
         {typeof messageError === 'string' && messageError.length > 0 && (
@@ -595,6 +560,7 @@ export const MessageItem = memo(
             <span className="text-muted-foreground">
               {formatDate(createdAt)}
             </span>
+            {versionNav}
             <CopyButton text={getFullTextContent()} />
 
             {onEdit && status !== CHAT_STATUS.STREAMING &&
@@ -627,6 +593,7 @@ export const MessageItem = memo(
                   (isStreaming || hideActions) && 'hidden'
                 )}
               >
+                {versionNav}
                 <CopyButton text={getFullTextContent()} />
 
                 {onEdit && !isStreaming && (
@@ -640,12 +607,27 @@ export const MessageItem = memo(
                   <DeleteMessageDialog onDelete={handleDelete} />
                 )}
 
+                {selectedModel &&
+                  onContinue &&
+                  !isStreaming &&
+                  isLastMessage &&
+                  isStopped && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={handleContinue}
+                      title={t('chat:actions.continue')}
+                    >
+                      <IconPlayerPlay size={16} />
+                    </Button>
+                  )}
+
                 {selectedModel && onRegenerate && !isStreaming && isLastMessage && (
                   <Button
                     variant="ghost"
                     size="icon-xs"
                     onClick={handleRegenerate}
-                    title={t('common:regenerateResponse')}
+                    title={t('chat:actions.regenerate')}
                   >
                     <IconRefresh size={16} />
                   </Button>
@@ -691,8 +673,9 @@ export const MessageItem = memo(
       prevProps.isFirstMessage === nextProps.isFirstMessage &&
       prevProps.isLastMessage === nextProps.isLastMessage &&
       prevProps.status === nextProps.status &&
-      prevProps.showAssistant === nextProps.showAssistant &&
-      prevProps.hideActions === nextProps.hideActions
+      prevProps.hideActions === nextProps.hideActions &&
+      prevProps.versionInfo?.index === nextProps.versionInfo?.index &&
+      prevProps.versionInfo?.count === nextProps.versionInfo?.count
     )
   }
 )

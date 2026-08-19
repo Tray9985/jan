@@ -11,6 +11,8 @@ import { useAppState } from '@/hooks/useAppState'
 
 type ThreadState = {
   threads: Record<string, Thread>
+  isLoadingThreads: boolean
+  setThreadsLoading: (loading: boolean) => void
   currentThreadId?: string
   getCurrentThread: () => Thread | undefined
   setThreads: (threads: Thread[]) => void
@@ -58,6 +60,8 @@ const cleanupVectorDB = async (threadId: string) => {
 
 export const useThreads = create<ThreadState>()((set, get) => ({
   threads: {},
+  isLoadingThreads: true,
+  setThreadsLoading: (loading) => set({ isLoadingThreads: loading }),
   searchIndex: null,
   setThreads: (threads) => {
     const threadMap = threads.reduce(
@@ -371,7 +375,9 @@ export const useThreads = create<ThreadState>()((set, get) => ({
           ...state.threads,
           [state.currentThreadId as string]: {
             ...state.threads[state.currentThreadId as string],
-            assistants: assistant ? [assistant] : [],
+            assistants: assistant
+              ? [{ ...assistant, model: currentThread?.model }]
+              : [],
             updated: Date.now() / 1000,
           },
         },
@@ -405,6 +411,7 @@ export const useThreads = create<ThreadState>()((set, get) => ({
         ...thread,
         title: newTitle,
         updated: Date.now() / 1000,
+        metadata: { ...thread.metadata, titleSetManually: true },
       }
       getServiceHub().threads().updateThread(updatedThread) // External call, order is fine
       const newThreads = { ...state.threads, [threadId]: updatedThread }

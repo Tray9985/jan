@@ -9,9 +9,14 @@ import { ModelCapabilities } from '@/types/models'
 import { modelSettings } from '@/lib/predefined'
 import { ExtensionManager } from '@/lib/extension'
 import { fetch as fetchTauri } from '@tauri-apps/plugin-http'
+import { invoke } from '@tauri-apps/api/core'
 import { DefaultProvidersService } from './default'
 import { getModelCapabilities } from '@/lib/models'
-import { providerRemoteApiKeyChain } from '@/lib/provider-api-keys'
+import {
+  API_KEY_FALLBACKS_SETTING_KEY,
+  providerRemoteApiKeyChain,
+} from '@/lib/provider-api-keys'
+import { ensureAnthropicHeaders } from '@/lib/remoteModelCatalog'
 
 /**
  * 从 API 返回的原始模型对象中提取 ProviderModelInfo
@@ -122,6 +127,8 @@ export class TauriProvidersService extends DefaultProvidersService {
                 capabilities,
                 embedding: model.embedding, // Preserve embedding flag for filtering in UI
                 imported: (model as { imported?: boolean }).imported,
+                template_kwargs: (model as { template_kwargs?: TemplateKwarg[] })
+                  .template_kwargs,
                 provider: providerName,
                 settings: Object.values(modelSettings).reduce(
                   (acc, setting) => {
@@ -149,7 +156,17 @@ export class TauriProvidersService extends DefaultProvidersService {
     }
   }
 
-  async fetchModelsFromProvider(provider: ModelProvider): Promise<ProviderModelInfo[]> {
+  async deleteProviderKeys(providerName: string): Promise<void> {
+    try {
+      await invoke('delete_provider_keys', { provider: providerName })
+    } catch (error) {
+      console.error(`Failed to delete keyring keys for ${providerName}:`, error)
+    }
+  }
+
+  async fetchModelsFromProvider(
+    provider: ModelProvider
+  ): Promise<ProviderModelInfo[]> {
     if (!provider.base_url) {
       throw new Error('Provider must have base_url configured')
     }
@@ -185,6 +202,8 @@ export class TauriProvidersService extends DefaultProvidersService {
             headers[header.header] = header.value
           })
         }
+
+        ensureAnthropicHeaders(provider, headers)
 
         const response = await fetchTauri(`${provider.base_url}/models`, {
           method: 'GET',
@@ -296,6 +315,11 @@ export class TauriProvidersService extends DefaultProvidersService {
     settings: ProviderSetting[]
   ): Promise<void> {
     try {
+      // API keys are persisted to the OS keyring only (via
+      // register_provider_config), never to the extension's settings.json.
+      // Blank the key entries at this single chokepoint regardless of caller.
+      const isSecretKey = (key: string) =>
+        key === 'api-key' || key === API_KEY_FALLBACKS_SETTING_KEY
       return ExtensionManager.getInstance()
         .getEngine(providerName)
         ?.updateSettings(
@@ -303,8 +327,9 @@ export class TauriProvidersService extends DefaultProvidersService {
             ...setting,
             controllerProps: {
               ...setting.controller_props,
-              value:
-                setting.controller_props.value !== undefined
+              value: isSecretKey(setting.key)
+                ? ''
+                : setting.controller_props.value !== undefined
                   ? setting.controller_props.value
                   : '',
             },

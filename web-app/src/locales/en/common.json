@@ -107,6 +107,9 @@
   "embeddingModelTooltip": "Embedding Model (for RAG/vectors, not chat)",
   "tools": "Tools",
   "webSearch": "Web Search",
+  "starting": "Starting...",
+  "browse": "Browse",
+  "browseActive": "Browse (Active)",
   "reasoning": "Reasoning",
   "proactive": "Proactive",
   "selectAModel": "Select a model",
@@ -258,6 +261,21 @@
       "nMinDescription": "Minimum number of tokens to draft per step. Default 0.",
       "pMin": "Min draft probability",
       "pMinDescription": "Minimum probability for greedy drafting (0–1). Default 0.75."
+    },
+    "nglDisabledByFit": "Auto-fit is choosing GPU layers. Turn off Auto-fit to set this manually.",
+    "samplingDefaults": {
+      "title": "Default sampling parameters",
+      "description": "Default sampler settings for this model. Used unless overridden by per-assistant or per-request values."
+    },
+    "templateKwargs": {
+      "section": "Chat template options",
+      "description": "Extra options this model's chat template accepts. Sent as chat_template_kwargs on each request; leave a value at its default to let the template decide.",
+      "addCustom": "Add custom option",
+      "keyPlaceholder": "name",
+      "valuePlaceholder": "value",
+      "add": "Add",
+      "cancel": "Cancel",
+      "remove": "Remove"
     }
   },
   "dialogs": {
@@ -484,7 +502,8 @@
       "unsupportedType": "File type \"{{type}}\" is not supported.",
       "ioError": "Could not read {{subject}}: {{message}}",
       "parseGeneric": "{{subject}} could not be parsed: {{message}}",
-      "fallback": "Failed to process {{subject}}."
+      "fallback": "Failed to process {{subject}}.",
+      "pdfUnsupportedFeature": "{{subject}} uses a PDF feature Jan can't parse yet (e.g. PostScript color/shading functions). Try re-saving it (File → Print → Save as PDF) to flatten it, then upload again."
     },
     "fileDeleted": {
       "title": "File Deleted",
@@ -505,6 +524,19 @@
     "attachmentsDisabledInfo": {
       "title": "Attachments Disabled",
       "description": "Attachments are disabled in Settings"
+    },
+    "openSettings": "Open Settings",
+    "downloadTokenRequired": {
+      "title": "Hugging Face token required",
+      "description": "This model requires a Hugging Face access token. Add your token in Settings and retry."
+    },
+    "downloadLicenseRequired": {
+      "title": "Accept model license on Hugging Face",
+      "description": "You must accept the model's license on its Hugging Face page before downloading."
+    },
+    "downloadRateLimited": {
+      "title": "Rate limited by Hugging Face",
+      "description": "You have been rate-limited. Adding a token can increase rate limits. Please try again later."
     }
   },
   "errors": {
@@ -618,5 +650,18 @@
     "penalties": "Penalties",
     "output": "Output control",
     "advanced": "Advanced samplers"
+  },
+  "htmlArtifact": {
+    "code": "Code",
+    "preview": "Preview",
+    "previewStreaming": "Available when generation finishes"
+  },
+  "web_search": "Web Search",
+  "analyticsConsentDetail": "We collect anonymous data to understand feature usage. Your chats and personal information are never tracked. You can change this anytime in Settings > Privacy.",
+  "analyticsConsentQuestion": "Would you like to help us to improve Jan?",
+  "duration": {
+    "seconds": "{{count}}s",
+    "minutes": "{{count}}m",
+    "hours": "{{count}}h"
   }
 }

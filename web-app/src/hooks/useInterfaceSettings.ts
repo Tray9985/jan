@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { localStorageKey } from '@/constants/localStorage'
+import { backendStorage } from '@/lib/backendStorage'
 import {
   getDefaultNotificationPosition,
   isNotificationPosition,
@@ -101,15 +102,48 @@ const applyAccentColorToDOM = (colorValue: string) => {
   root.style.setProperty('--primary', color.primary)
 }
 
+export const MESSAGE_ZOOM_LEVELS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2]
+const defaultMessageZoom = 1
+
+export const sanitizeMessageZoom = (zoom: unknown): number => {
+  if (typeof zoom !== 'number' || !Number.isFinite(zoom)) {
+    return defaultMessageZoom
+  }
+  return MESSAGE_ZOOM_LEVELS.reduce((nearest, level) =>
+    Math.abs(level - zoom) < Math.abs(nearest - zoom) ? level : nearest
+  )
+}
+
+const stepMessageZoom = (current: number, direction: 1 | -1): number => {
+  const levels =
+    direction === 1 ? MESSAGE_ZOOM_LEVELS : [...MESSAGE_ZOOM_LEVELS].reverse()
+  const from = sanitizeMessageZoom(current)
+  return (
+    levels.find((level) =>
+      direction === 1 ? level > from : level < from
+    ) ?? from
+  )
+}
+
 interface InterfaceSettingsState {
   fontSize: FontSize
+  messageZoom: number
   accentColor: AccentColorValue
   notificationPosition: NotificationPosition
   showTokenSpeed: boolean
+  coloredUserBubble: boolean
+  renderHtmlArtifacts: boolean
+  autoGenerateTitle: boolean
   setFontSize: (size: FontSize) => void
+  zoomInMessages: () => void
+  zoomOutMessages: () => void
+  resetMessageZoom: () => void
   setAccentColor: (color: AccentColorValue) => void
   setNotificationPosition: (position: NotificationPosition) => void
   setShowTokenSpeed: (show: boolean) => void
+  setColoredUserBubble: (colored: boolean) => void
+  setRenderHtmlArtifacts: (render: boolean) => void
+  setAutoGenerateTitle: (auto: boolean) => void
   resetInterface: () => void
 }
 
@@ -117,9 +151,15 @@ type InterfaceSettingsPersistedSlice = Omit<
   InterfaceSettingsState,
   | 'resetInterface'
   | 'setFontSize'
+  | 'zoomInMessages'
+  | 'zoomOutMessages'
+  | 'resetMessageZoom'
   | 'setAccentColor'
   | 'setNotificationPosition'
   | 'setShowTokenSpeed'
+  | 'setColoredUserBubble'
+  | 'setRenderHtmlArtifacts'
+  | 'setAutoGenerateTitle'
 >
 
 export const fontSizeOptions = [
@@ -135,14 +175,18 @@ const defaultFontSize: FontSize = '16px'
 const createDefaultInterfaceValues = (): InterfaceSettingsPersistedSlice => {
   return {
     fontSize: defaultFontSize,
+    messageZoom: defaultMessageZoom,
     accentColor: DEFAULT_ACCENT_COLOR,
     notificationPosition: getDefaultNotificationPosition(),
     showTokenSpeed: true,
+    coloredUserBubble: true,
+    renderHtmlArtifacts: false,
+    autoGenerateTitle: true,
   }
 }
 
-const interfaceStorage = createJSONStorage<InterfaceSettingsPersistedSlice>(() =>
-  localStorage
+const interfaceStorage = createJSONStorage<InterfaceSettingsPersistedSlice>(
+  () => backendStorage
 )
 
 export const useInterfaceSettings = create<InterfaceSettingsState>()(
@@ -169,9 +213,13 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
           // Update state
           set({
             fontSize: defaultFontSize,
+            messageZoom: defaultMessageZoom,
             accentColor: DEFAULT_ACCENT_COLOR,
             notificationPosition: getDefaultNotificationPosition(),
             showTokenSpeed: true,
+            coloredUserBubble: true,
+            renderHtmlArtifacts: false,
+            autoGenerateTitle: true,
           })
         },
 
@@ -190,6 +238,16 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
           set({ fontSize: size })
         },
 
+        zoomInMessages: () =>
+          set((state) => ({ messageZoom: stepMessageZoom(state.messageZoom, 1) })),
+
+        zoomOutMessages: () =>
+          set((state) => ({
+            messageZoom: stepMessageZoom(state.messageZoom, -1),
+          })),
+
+        resetMessageZoom: () => set({ messageZoom: defaultMessageZoom }),
+
         setNotificationPosition: (position) => {
           if (!isNotificationPosition(position)) return
           set({ notificationPosition: position })
@@ -198,16 +256,33 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
         setShowTokenSpeed: (show) => {
           set({ showTokenSpeed: show })
         },
+
+        setColoredUserBubble: (colored) => {
+          set({ coloredUserBubble: colored })
+        },
+
+        setRenderHtmlArtifacts: (render) => {
+          set({ renderHtmlArtifacts: render })
+        },
+
+        setAutoGenerateTitle: (auto) => {
+          set({ autoGenerateTitle: auto })
+        },
       }
     },
     {
       name: localStorageKey.settingInterface,
       storage: interfaceStorage,
+      skipHydration: true,
       partialize: (state) => ({
         fontSize: state.fontSize,
+        messageZoom: state.messageZoom,
         accentColor: state.accentColor,
         notificationPosition: state.notificationPosition,
         showTokenSpeed: state.showTokenSpeed,
+        coloredUserBubble: state.coloredUserBubble,
+        renderHtmlArtifacts: state.renderHtmlArtifacts,
+        autoGenerateTitle: state.autoGenerateTitle,
       }),
       // Apply settings when hydrating from storage
       onRehydrateStorage: () => (state) => {
@@ -223,6 +298,8 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
             state.fontSize
           )
 
+          state.messageZoom = sanitizeMessageZoom(state.messageZoom)
+
           // Apply accent color preset
           const accentColorValue = state.accentColor || DEFAULT_ACCENT_COLOR
           applyAccentColorToDOM(accentColorValue)
@@ -236,6 +313,18 @@ export const useInterfaceSettings = create<InterfaceSettingsState>()(
 
           if (typeof state.showTokenSpeed !== 'boolean') {
             state.showTokenSpeed = true
+          }
+
+          if (typeof state.coloredUserBubble !== 'boolean') {
+            state.coloredUserBubble = true
+          }
+
+          if (typeof state.renderHtmlArtifacts !== 'boolean') {
+            state.renderHtmlArtifacts = false
+          }
+
+          if (typeof state.autoGenerateTitle !== 'boolean') {
+            state.autoGenerateTitle = true
           }
         }
 

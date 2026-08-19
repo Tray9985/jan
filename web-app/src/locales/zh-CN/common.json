@@ -229,6 +229,7 @@
     "delete": "删除"
   },
   "modelSettings": {
+    "nglDisabledByFit": "Auto-fit is choosing GPU layers. Turn off Auto-fit to set this manually.",
     "title": "模型设置 - {{modelId}}",
     "description": "配置模型设置以优化性能和行为。",
     "mtp": {
@@ -242,6 +243,20 @@
       "nMinDescription": "每步最少生成的草稿 token 数。默认 0。",
       "pMin": "最小草稿概率",
       "pMinDescription": "贪婪采样的最小概率 (0–1)。默认 0.75。"
+    },
+    "samplingDefaults": {
+      "title": "默认采样参数",
+      "description": "此模型的默认采样器设置。未被助手或单次请求中的值覆盖时使用。"
+    },
+    "templateKwargs": {
+      "section": "聊天模板选项",
+      "description": "此模型聊天模板支持的额外选项。每次请求时会作为 chat_template_kwargs 发送；保留默认值可让模板自行决定。",
+      "addCustom": "添加自定义选项",
+      "keyPlaceholder": "名称",
+      "valuePlaceholder": "值",
+      "add": "添加",
+      "cancel": "取消",
+      "remove": "移除"
     }
   },
   "projects": {
@@ -451,7 +466,8 @@
       "unsupportedType": "不支持文件类型 \"{{type}}\"。",
       "ioError": "无法读取 {{subject}}：{{message}}",
       "parseGeneric": "{{subject}} 无法解析：{{message}}",
-      "fallback": "处理 {{subject}} 失败。"
+      "fallback": "处理 {{subject}} 失败。",
+      "pdfUnsupportedFeature": "{{subject}} 使用了 Jan 暂不支持解析的 PDF 特性（例如 PostScript 颜色或阴影函数）。请尝试通过“文件 → 打印 → 存储为 PDF”重新保存以展平内容，然后再次上传。"
     },
     "fileDeleted": {
       "title": "文件已删除",
@@ -472,6 +488,19 @@
     "attachmentsDisabledInfo": {
       "title": "附件已禁用",
       "description": "附件功能已在设置中禁用"
+    },
+    "openSettings": "打开设置",
+    "downloadTokenRequired": {
+      "title": "需要 Hugging Face Token",
+      "description": "此模型需要 Hugging Face 访问 Token。请在设置中添加 Token 后重试。"
+    },
+    "downloadLicenseRequired": {
+      "title": "请在 Hugging Face 接受模型许可",
+      "description": "下载前必须先在模型的 Hugging Face 页面接受许可协议。"
+    },
+    "downloadRateLimited": {
+      "title": "Hugging Face 请求受限",
+      "description": "请求频率已受限。添加 Token 可提高限额，请稍后重试。"
     }
   },
   "llamacppBusyOnExit": {
@@ -569,7 +598,7 @@
   "openAssistantSettings": "打开助手设置",
   "pickAssistant": "在上方选择一个助手来配置采样参数。",
   "addParameter": "添加参数",
-  "unrecognizedParamHidden": "{{count}} 个未识别参数已隐藏：{{list}}",
+  "unrecognizedParamHidden": "已隐藏 {{count}} 个未识别参数{{suffix}}：{{list}}",
   "paramNotSupported": "不支持 — 将被跳过。",
   "paramNotSupportedStrip": "不支持 — 发送时将被移除",
   "paramMayBeIgnored": "可能被此提供者忽略",
@@ -620,5 +649,21 @@
     "penalties": "惩罚参数",
     "output": "输出控制",
     "advanced": "高级采样器"
+  },
+  "starting": "正在启动...",
+  "browse": "浏览",
+  "browseActive": "浏览（已启用）",
+  "htmlArtifact": {
+    "code": "代码",
+    "preview": "预览",
+    "previewStreaming": "生成完成后可用"
+  },
+  "web_search": "网页搜索",
+  "analyticsConsentDetail": "我们会收集匿名数据以了解功能使用情况。不会跟踪您的聊天内容和个人信息。您可以随时在“设置 > 隐私”中更改此选项。",
+  "analyticsConsentQuestion": "您愿意帮助我们改进 Jan 吗？",
+  "duration": {
+    "seconds": "{{count}} 秒",
+    "minutes": "{{count}} 分钟",
+    "hours": "{{count}} 小时"
   }
 }

@@ -28,13 +28,13 @@ import {
 
 import { AssistantsMenu } from '@/components/AssistantsMenu'
 import { AvatarEmoji } from '@/containers/AvatarEmoji'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import { ParametersSection } from '@/containers/ParametersSection'
 import { useAssistant } from '@/hooks/useAssistant'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { paramsSettings, type ParamDef } from '@/lib/predefinedParams'
 import { isPredefinedRemoteProvider } from '@/lib/providerCaps'
 import { cn } from '@/lib/utils'
-import { useTranslation } from '@/i18n/react-i18next-compat'
 
 interface SamplerPopoverProps {
   /** Provider ID of the currently-selected model, if any. Used to scope the

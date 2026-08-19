@@ -51,8 +51,13 @@ const h = vi.hoisted(() => {
   const appStateState = {
     ragToolNames: new Set<string>(),
     mcpToolNames: new Set<string>(),
+    tools: [] as Array<{ name: string; server?: string }>,
     setOomError: vi.fn(),
     setBackendError: vi.fn(),
+    busyThreads: {} as Record<string, boolean>,
+    embeddingThreads: {} as Record<string, boolean>,
+    setThreadBusy: vi.fn(),
+    setThreadEmbedding: vi.fn(),
   }
   const useAppStateMock: any = (selector: any) => selector(appStateState)
   useAppStateMock.getState = () => appStateState
@@ -108,11 +113,17 @@ const h = vi.hoisted(() => {
   useToolAvailableMock.getState = () => toolAvailableState
 
   const toolApprovalState: any = {
-    showApprovalModal: vi.fn().mockResolvedValue(true),
     approveToolForThread: vi.fn(),
+    clearPendingForThread: vi.fn(),
+    requestApproval: vi.fn().mockResolvedValue(true),
   }
   const useToolApprovalMock: any = (selector: any) => selector(toolApprovalState)
   useToolApprovalMock.getState = () => toolApprovalState
+  // Transient approval store shares the same backing object so existing
+  // toolApprovalState.requestApproval / clearPendingForThread refs keep working.
+  const useToolApprovalRequestsMock: any = (selector: any) =>
+    selector(toolApprovalState)
+  useToolApprovalRequestsMock.getState = () => toolApprovalState
 
   const agentModeState: any = { agentThreads: {} }
   const useAgentModeMock: any = (selector: any) => selector(agentModeState)
@@ -152,6 +163,7 @@ const h = vi.hoisted(() => {
     useToolAvailableMock,
     toolApprovalState,
     useToolApprovalMock,
+    useToolApprovalRequestsMock,
     agentModeState,
     useAgentModeMock,
     messageQueueState,
@@ -197,9 +209,27 @@ vi.mock('@/containers/ChatInput', () => ({
 }))
 
 vi.mock('@/containers/MessageItem', () => ({
-  MessageItem: ({ message, onRegenerate, onEdit, onDelete }: any) => (
+  MessageItem: ({
+    message,
+    onRegenerate,
+    onEdit,
+    onDelete,
+    versionInfo,
+    onSwitchVersion,
+  }: any) => (
     <div data-testid={`message-${message.id}`} data-role={message.role}>
       <span>{message.id}</span>
+      {versionInfo && (
+        <span data-testid={`version-${message.id}`}>
+          {versionInfo.index}/{versionInfo.count}
+        </span>
+      )}
+      <button
+        data-testid={`prev-${message.id}`}
+        onClick={() => onSwitchVersion?.(message.id, -1)}
+      >
+        prev
+      </button>
       <button
         data-testid={`regen-${message.id}`}
         onClick={() => onRegenerate(message.id)}
@@ -276,6 +306,8 @@ vi.mock('@/lib/messages', () => ({
     msg.parts
       .filter((p: any) => p.type === 'text')
       .map((p: any) => ({ type: 'text', text: { value: p.text, annotations: [] } })),
+  uiMessageHasMeaningfulContent: (msg: any) =>
+    !!msg?.parts?.some((p: any) => p.type === 'text' && p.text?.trim()),
 }))
 
 vi.mock('@/lib/completion', () => ({
@@ -296,6 +328,7 @@ vi.mock('@/lib/attachmentProcessing', () => ({
 
 vi.mock('@/lib/thread-title-summarizer', () => ({
   generateThreadTitle: vi.fn().mockResolvedValue('Short title'),
+  buildTranscriptFromMessages: vi.fn().mockReturnValue('User: hello'),
 }))
 
 vi.mock('@/types/attachment', () => ({
@@ -312,18 +345,22 @@ vi.mock('zustand/react/shallow', () => ({
 }))
 
 vi.mock('@/hooks/use-chat', () => ({
-  useChat: (_args: any) => ({
-    messages: h.chatState.messages,
-    status: h.chatState.status,
-    error: h.chatState.error,
-    sendMessage: h.mockSendMessage,
-    regenerate: h.mockRegenerate,
-    setMessages: h.mockSetChatMessages,
-    stop: h.mockStop,
-    addToolOutput: h.mockAddToolOutput,
-    updateRagToolsAvailability: h.mockUpdateRag,
-    setContinueFromContent: h.mockSetContinueFromContent,
-  }),
+  useChat: (_args: any) => {
+    ;(h as any).capturedOnFinish = _args?.onFinish
+    ;(h as any).capturedOnToolCall = _args?.onToolCall
+    return {
+      messages: h.chatState.messages,
+      status: h.chatState.status,
+      error: h.chatState.error,
+      sendMessage: h.mockSendMessage,
+      regenerate: h.mockRegenerate,
+      setMessages: h.mockSetChatMessages,
+      stop: h.mockStop,
+      addToolOutput: h.mockAddToolOutput,
+      updateRagToolsAvailability: h.mockUpdateRag,
+      setContinueFromContent: h.mockSetContinueFromContent,
+    }
+  },
 }))
 
 vi.mock('@/hooks/useThreads', () => ({ useThreads: h.useThreadsMock }))
@@ -339,6 +376,9 @@ vi.mock('@/hooks/useChatAttachments', () => ({
 vi.mock('@/hooks/useAttachments', () => ({ useAttachments: h.useAttachmentsMock }))
 vi.mock('@/hooks/useToolAvailable', () => ({ useToolAvailable: h.useToolAvailableMock }))
 vi.mock('@/hooks/useToolApproval', () => ({ useToolApproval: h.useToolApprovalMock }))
+vi.mock('@/hooks/useToolApprovalRequests', () => ({
+  useToolApprovalRequests: h.useToolApprovalRequestsMock,
+}))
 vi.mock('@/hooks/useAgentMode', () => ({ useAgentMode: h.useAgentModeMock }))
 vi.mock('@/stores/message-queue-store', () => ({ useMessageQueue: h.useMessageQueueMock }))
 
@@ -373,6 +413,13 @@ vi.mock('@/utils/error', () => ({
 // Import component AFTER mocks
 // -----------------------------------------------------------------------------
 import { Route } from '../$threadId'
+import { getServiceHub } from '@/hooks/useServiceHub'
+import { useToolCallRuntime } from '@/hooks/useToolCallRuntime'
+
+// The global setup mock is a shared object, so an overridden factory has to be
+// put back or it leaks into every later test.
+const hub = getServiceHub() as unknown as Record<string, unknown>
+const realMcp = hub.mcp
 
 const renderComponent = () => {
   const Component = Route.component as React.ComponentType
@@ -414,6 +461,14 @@ describe('ThreadDetail route', () => {
     h.messageQueueState.dequeue = vi.fn(() => null)
     h.messageQueueState.clearQueue = vi.fn()
     h.agentModeState.agentThreads = {}
+    h.modelProviderState.selectedProvider = 'openai'
+    h.appStateState.oomError = undefined
+    h.appStateState.ragToolNames = new Set<string>()
+    h.appStateState.mcpToolNames = new Set<string>()
+    h.appStateState.tools = []
+    h.toolApprovalState.requestApproval = vi.fn().mockResolvedValue(true)
+    hub.mcp = realMcp
+    useToolCallRuntime.getState().reset()
     sessionStorage.clear()
   })
 
@@ -441,6 +496,12 @@ describe('ThreadDetail route', () => {
     expect(h.threadsState.setCurrentThreadId).toHaveBeenCalledWith('thread-1')
     unmount()
     expect(h.threadsState.setCurrentThreadId).toHaveBeenLastCalledWith(undefined)
+  })
+
+  it('clears this thread pending tool approvals on unmount', () => {
+    const { unmount } = renderComponent()
+    unmount()
+    expect(h.toolApprovalState.clearPendingForThread).toHaveBeenCalledWith('thread-1')
   })
 
   it('renders messages passed through useChat', () => {
@@ -480,28 +541,34 @@ describe('ThreadDetail route', () => {
     expect(h.mockRegenerate).toHaveBeenCalledWith({ messageId: 'u1' })
   })
 
-  it('regenerate from an assistant message deletes msgs after preceding user', () => {
+  it('regenerate from an assistant message keeps the prior version (no delete)', () => {
     h.chatState.messages = [
       { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] },
       { id: 'a1', role: 'assistant', parts: [{ type: 'text', text: 'hello' }] },
     ]
     renderComponent()
     screen.getByTestId('regen-a1').click()
-    expect(h.messagesState.deleteMessage).toHaveBeenCalledWith('thread-1', 'a1')
+    // Versioning: the old reply is preserved, parent links are backfilled.
+    expect(h.messagesState.deleteMessage).not.toHaveBeenCalled()
+    expect(h.messagesState.updateMessage).toHaveBeenCalled()
     expect(h.mockRegenerate).toHaveBeenCalledWith({ messageId: 'a1' })
   })
 
-  it('edit on a user message updates and regenerates', () => {
+  it('edit on a user message forks a new version and regenerates', () => {
     h.chatState.messages = [
       { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] },
       { id: 'a1', role: 'assistant', parts: [{ type: 'text', text: 'hello' }] },
     ]
     renderComponent()
     screen.getByTestId('edit-u1').click()
+    // A new sibling version is added; the original branch is not deleted.
+    expect(h.messagesState.addMessage).toHaveBeenCalled()
     expect(h.messagesState.updateMessage).toHaveBeenCalled()
     expect(h.mockSetChatMessages).toHaveBeenCalled()
-    expect(h.messagesState.deleteMessage).toHaveBeenCalledWith('thread-1', 'a1')
-    expect(h.mockRegenerate).toHaveBeenCalledWith({ messageId: 'u1' })
+    expect(h.messagesState.deleteMessage).not.toHaveBeenCalled()
+    expect(h.mockRegenerate).toHaveBeenCalledWith(
+      expect.objectContaining({ messageId: expect.any(String) })
+    )
   })
 
   it('edit on an assistant message updates without regenerating', () => {
@@ -513,6 +580,380 @@ describe('ThreadDetail route', () => {
     screen.getByTestId('edit-a1').click()
     expect(h.messagesState.updateMessage).toHaveBeenCalled()
     expect(h.mockRegenerate).not.toHaveBeenCalled()
+  })
+
+  it('shows a version chip and switches branches without regenerating', () => {
+    const branched = [
+      {
+        id: 'u1',
+        role: 'user',
+        created_at: 1,
+        content: [{ type: 'text', text: { value: 'hi', annotations: [] } }],
+        metadata: { parentId: null },
+      },
+      {
+        id: 'a1a',
+        role: 'assistant',
+        created_at: 2,
+        content: [{ type: 'text', text: { value: 'v1', annotations: [] } }],
+        metadata: { parentId: 'u1' },
+      },
+      {
+        id: 'a1b',
+        role: 'assistant',
+        created_at: 3,
+        content: [{ type: 'text', text: { value: 'v2', annotations: [] } }],
+        metadata: { parentId: 'u1' },
+      },
+    ]
+    h.messagesState.messages = { 'thread-1': branched }
+    h.messagesState.getMessages = vi.fn(() => branched)
+    h.chatState.messages = [
+      { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] },
+      { id: 'a1b', role: 'assistant', parts: [{ type: 'text', text: 'v2' }] },
+    ]
+    renderComponent()
+    // The active (newest) reply shows as version 2 of 2.
+    expect(screen.getByTestId('version-a1b').textContent).toBe('2/2')
+    screen.getByTestId('prev-a1b').click()
+    // Switching pins the parent's active child and re-renders, no regeneration.
+    expect(h.messagesState.updateMessage).toHaveBeenCalled()
+    expect(h.mockSetChatMessages).toHaveBeenCalled()
+    expect(h.mockRegenerate).not.toHaveBeenCalled()
+  })
+
+  it('clears an active banner error when switching versions so a healthy assistant is not hidden', () => {
+    // A prior turn left a router OOM banner active. Without clearing it on
+    // switch, the render filter blanks the last assistant of whatever branch we
+    // land on, leaving only user messages visible.
+    h.modelProviderState.selectedProvider = 'llamacpp'
+    h.appStateState.oomError = 'router crashed'
+    const branched = [
+      {
+        id: 'u1',
+        role: 'user',
+        created_at: 1,
+        content: [{ type: 'text', text: { value: 'hi', annotations: [] } }],
+        metadata: { parentId: null },
+      },
+      {
+        id: 'a1a',
+        role: 'assistant',
+        created_at: 2,
+        content: [{ type: 'text', text: { value: 'v1', annotations: [] } }],
+        metadata: { parentId: 'u1' },
+      },
+      {
+        id: 'a1b',
+        role: 'assistant',
+        created_at: 3,
+        content: [{ type: 'text', text: { value: 'v2', annotations: [] } }],
+        metadata: { parentId: 'u1' },
+      },
+    ]
+    h.messagesState.messages = { 'thread-1': branched }
+    h.messagesState.getMessages = vi.fn(() => branched)
+    // a1b is rendered mid-list (a trailing user turn keeps it off the
+    // last-message filter) so its version nav stays clickable.
+    h.chatState.messages = [
+      { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] },
+      { id: 'a1b', role: 'assistant', parts: [{ type: 'text', text: 'v2' }] },
+      { id: 'u2', role: 'user', parts: [{ type: 'text', text: 'more' }] },
+    ]
+    renderComponent()
+    screen.getByTestId('prev-a1b').click()
+    expect(h.appStateState.setOomError).toHaveBeenCalledWith(undefined)
+    expect(h.mockRegenerate).not.toHaveBeenCalled()
+  })
+
+  it('onFinish links a new assistant to the active user turn in a branched thread (never null parent)', () => {
+    // Regression for #8357: once a thread is branched, a lost pending-parent ref
+    // must not persist the assistant with parentId:null (which computeActivePath
+    // drops as a phantom root, leaving "user messages in a row").
+    const branched = [
+      {
+        id: 'u1',
+        role: 'user',
+        created_at: 1,
+        content: [{ type: 'text', text: { value: 'hi', annotations: [] } }],
+        metadata: { parentId: null },
+      },
+      {
+        id: 'a1',
+        role: 'assistant',
+        created_at: 2,
+        content: [{ type: 'text', text: { value: 'r1', annotations: [] } }],
+        metadata: { parentId: 'u1' },
+      },
+      {
+        id: 'u2',
+        role: 'user',
+        created_at: 3,
+        content: [{ type: 'text', text: { value: 'again', annotations: [] } }],
+        metadata: { parentId: 'a1' },
+      },
+    ]
+    h.messagesState.getMessages = vi.fn(() => branched)
+    renderComponent()
+
+    act(() => {
+      ;(h as any).capturedOnFinish({
+        message: {
+          id: 'a2',
+          role: 'assistant',
+          parts: [{ type: 'text', text: 'reply for u2' }],
+          metadata: {},
+        },
+        isAbort: false,
+      })
+    })
+
+    const added = h.messagesState.addMessage.mock.calls.map((c: any[]) => c[0])
+    const persisted = added.find((m: any) => m.id === 'a2')
+    expect(persisted).toBeTruthy()
+    expect(persisted.metadata.parentId).toBe('u2')
+    expect(persisted.metadata.parentId).not.toBeNull()
+  })
+
+  describe('tool-call approval requested early, execution stays in onFinish', () => {
+    const toolCall = (id: string) => ({
+      toolCall: { toolCallId: id, toolName: 'fetch', input: { url: 'x' } },
+    })
+    const finishWithToolCalls = () =>
+      (h as any).capturedOnFinish({
+        message: {
+          id: 'a-tc',
+          role: 'assistant',
+          parts: [{ type: 'text', text: '' }],
+          metadata: { finishReason: 'tool-calls' },
+        },
+        isAbort: false,
+      })
+
+    it('requests approval as soon as a tool call arrives, before onFinish', async () => {
+      h.appStateState.mcpToolNames = new Set(['fetch'])
+      h.toolApprovalState.requestApproval = vi.fn().mockResolvedValue(true)
+      renderComponent()
+
+      expect((h as any).capturedOnToolCall).toBeTypeOf('function')
+
+      await act(async () => {
+        await (h as any).capturedOnToolCall(toolCall('tc1'))
+      })
+
+      // Popup is requested purely from the tool-call arrival, decoupled from onFinish.
+      expect(h.toolApprovalState.requestApproval).toHaveBeenCalledWith(
+        'tc1',
+        'fetch',
+        'thread-1',
+        undefined
+      )
+    })
+
+    // The prompt offers to trust the whole server, so it needs to know which.
+    it('passes the tool server along with the approval request', async () => {
+      h.appStateState.mcpToolNames = new Set(['fetch'])
+      h.appStateState.tools = [{ name: 'fetch', server: 'fetch-server' }]
+      h.toolApprovalState.requestApproval = vi.fn().mockResolvedValue(true)
+      renderComponent()
+
+      await act(async () => {
+        await (h as any).capturedOnToolCall(toolCall('tc1'))
+      })
+
+      expect(h.toolApprovalState.requestApproval).toHaveBeenCalledWith(
+        'tc1',
+        'fetch',
+        'thread-1',
+        'fetch-server'
+      )
+    })
+
+    it('does NOT execute the tool from onToolCall (execution deferred to onFinish)', async () => {
+      // Executing during streaming lands addToolResult on an incomplete message,
+      // which suppresses auto-resubmit and makes the model appear to "stop".
+      h.appStateState.mcpToolNames = new Set(['fetch'])
+      h.toolApprovalState.requestApproval = vi.fn().mockResolvedValue(true)
+      renderComponent()
+
+      await act(async () => {
+        await (h as any).capturedOnToolCall(toolCall('tc1'))
+      })
+
+      expect(h.mockAddToolOutput).not.toHaveBeenCalled()
+    })
+
+    it('executes approved tools in onFinish so the completed message can auto-resubmit', async () => {
+      h.appStateState.mcpToolNames = new Set(['fetch'])
+      h.toolApprovalState.requestApproval = vi.fn().mockResolvedValue(true)
+      renderComponent()
+
+      await act(async () => {
+        await (h as any).capturedOnToolCall(toolCall('tc2'))
+      })
+      await act(async () => {
+        await finishWithToolCalls()
+      })
+
+      // Global setup mock resolves callTool to { error: '', content: [] }.
+      expect(h.mockAddToolOutput).toHaveBeenCalledWith(
+        expect.objectContaining({ toolCallId: 'tc2', tool: 'fetch' })
+      )
+    })
+
+    it('reuses the early approval instead of prompting twice', async () => {
+      h.appStateState.mcpToolNames = new Set(['fetch'])
+      h.toolApprovalState.requestApproval = vi.fn().mockResolvedValue(true)
+      renderComponent()
+
+      await act(async () => {
+        await (h as any).capturedOnToolCall(toolCall('tc4'))
+      })
+      await act(async () => {
+        await finishWithToolCalls()
+      })
+
+      expect(h.toolApprovalState.requestApproval).toHaveBeenCalledTimes(1)
+    })
+
+    // A model can request several tools in one turn. They arrive together but
+    // are executed one at a time, which is what the queue display depends on.
+    describe('several tool calls in one turn', () => {
+      const arrive = async (...ids: string[]) => {
+        for (const id of ids) {
+          await act(async () => {
+            await (h as any).capturedOnToolCall(toolCall(id))
+          })
+        }
+      }
+
+      it('executes every call in the turn', async () => {
+        h.appStateState.mcpToolNames = new Set(['fetch'])
+        renderComponent()
+        await arrive('tcA', 'tcB', 'tcC')
+        await act(async () => {
+          await finishWithToolCalls()
+        })
+
+        const ids = h.mockAddToolOutput.mock.calls.map(
+          (c: any[]) => c[0].toolCallId
+        )
+        expect(ids).toEqual(['tcA', 'tcB', 'tcC'])
+      })
+
+      it('runs them one at a time, not concurrently', async () => {
+        h.appStateState.mcpToolNames = new Set(['fetch'])
+        const started: string[] = []
+        let releaseFirst: (() => void) | undefined
+        const callTool = vi.fn(({ arguments: args }: any) => {
+          started.push(args.id)
+          if (started.length === 1) {
+            return new Promise((resolve) => {
+              releaseFirst = () => resolve({ error: '', content: [] })
+            })
+          }
+          return Promise.resolve({ error: '', content: [] })
+        })
+        hub.mcp = () => ({ callTool }) as never
+
+        renderComponent()
+        await act(async () => {
+          await (h as any).capturedOnToolCall({
+            toolCall: {
+              toolCallId: 'tcA',
+              toolName: 'fetch',
+              input: { id: 'tcA' },
+            },
+          })
+          await (h as any).capturedOnToolCall({
+            toolCall: {
+              toolCallId: 'tcB',
+              toolName: 'fetch',
+              input: { id: 'tcB' },
+            },
+          })
+        })
+        await act(async () => {
+          await finishWithToolCalls()
+        })
+
+        // Second call must not have been dispatched while the first is pending.
+        expect(started).toEqual(['tcA'])
+        await act(async () => {
+          releaseFirst?.()
+        })
+        expect(started).toEqual(['tcA', 'tcB'])
+      })
+
+      it('drains the runtime queue and times every call', async () => {
+        h.appStateState.mcpToolNames = new Set(['fetch'])
+        renderComponent()
+        await arrive('tcA', 'tcB')
+        await act(async () => {
+          await finishWithToolCalls()
+        })
+
+        const runtime = useToolCallRuntime.getState()
+        expect(runtime.queue).toEqual([])
+        for (const id of ['tcA', 'tcB']) {
+          expect(runtime.timings[id]?.startedAt).toBeDefined()
+          expect(runtime.timings[id]?.endedAt).toBeDefined()
+        }
+      })
+
+      it('keeps going when one call is denied', async () => {
+        h.appStateState.mcpToolNames = new Set(['fetch'])
+        h.toolApprovalState.requestApproval = vi.fn((id: string) =>
+          Promise.resolve(id !== 'tcA')
+        )
+        renderComponent()
+        await arrive('tcA', 'tcB')
+        await act(async () => {
+          await finishWithToolCalls()
+        })
+
+        const outputs = h.mockAddToolOutput.mock.calls.map((c: any[]) => c[0])
+        expect(outputs[0]).toMatchObject({
+          toolCallId: 'tcA',
+          state: 'output-error',
+        })
+        expect(outputs[1]).toMatchObject({ toolCallId: 'tcB' })
+        expect(outputs[1].state).not.toBe('output-error')
+      })
+
+      // A denied call never runs, so it has no duration -- but leaving it in
+      // the queue would keep its card claiming it is waiting its turn.
+      it('leaves nothing queued after a denied call', async () => {
+        h.appStateState.mcpToolNames = new Set(['fetch'])
+        h.toolApprovalState.requestApproval = vi.fn().mockResolvedValue(false)
+        renderComponent()
+        await arrive('tcA', 'tcB')
+        await act(async () => {
+          await finishWithToolCalls()
+        })
+
+        const runtime = useToolCallRuntime.getState()
+        expect(runtime.queue).toEqual([])
+        expect(runtime.timings['tcA']?.startedAt).toBeUndefined()
+        expect(runtime.timings['tcA']?.endedAt).toBeDefined()
+      })
+    })
+
+    it('marks the thread busy during onFinish execution and clears it when tools drain', async () => {
+      h.appStateState.mcpToolNames = new Set(['fetch'])
+      h.toolApprovalState.requestApproval = vi.fn().mockResolvedValue(true)
+      renderComponent()
+
+      await act(async () => {
+        await (h as any).capturedOnToolCall(toolCall('tc5'))
+      })
+      await act(async () => {
+        await finishWithToolCalls()
+      })
+
+      expect(h.appStateState.setThreadBusy).toHaveBeenCalledWith('thread-1', true)
+      expect(h.appStateState.setThreadBusy).toHaveBeenLastCalledWith('thread-1', false)
+    })
   })
 
   it('delete removes message from store and chat list', () => {

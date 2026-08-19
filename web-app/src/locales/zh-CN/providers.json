@@ -57,7 +57,8 @@
     "warning": {
       "title": "谨慎操作",
       "description": "修改模型功能可能会影响性能和功能。错误的设置可能导致意外行为或错误。"
-    }
+    },
+    "video": "视频"
   },
   "addProvider": "添加提供商",
   "addOpenAIProvider": "添加 OpenAI 提供商",
@@ -144,5 +145,19 @@
   "importMlxModel": "导入 MLX 模型",
   "importMlxModelDescription": "导入本地 MLX 模型文件夹以用于 MLX。MLX 模型通常从 HuggingFace 下载，包含 safetensors 文件以及配置和分词器文件。",
   "mlxModelPlaceholder": "my-mlx-model",
-  "importLlamacppModelDescription": "导入 GGUF 模型文件以添加到您的模型库。启用多模态支持以附加 mmproj 处理图像或音频输入。嵌入模型会自动检测。"
+  "importLlamacppModelDescription": "导入 GGUF 模型文件以添加到您的模型库。可启用多模态支持以附加 mmproj 处理图像或音频输入，或启用草稿模型支持进行推测解码。嵌入模型会自动检测。",
+  "backendInstalled": "已安装",
+  "backendHistoryShow": "显示更新历史",
+  "backendHistoryHide": "隐藏更新历史",
+  "backendHistoryLoading": "正在加载更新历史...",
+  "backendHistoryEmpty": "尚无后端更新记录。",
+  "backendHistoryNone": "无",
+  "backendHistoryUpdated": "已更新",
+  "backendHistoryRolledBack": "已回滚",
+  "backendHistoryRollbackFailed": "回滚失败",
+  "backendHistoryFailed": "失败",
+  "baseUrl": {
+    "title": "基础 URL",
+    "azureDescription": "您的 Azure OpenAI 端点。请将 YOUR-RESOURCE-NAME 替换为 Azure 资源名称。"
+  }
 }

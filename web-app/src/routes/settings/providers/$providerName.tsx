@@ -19,6 +19,7 @@ import { DialogDeleteAllModels } from '@/containers/dialogs/DeleteAllModels'
 import { FavoriteModelAction } from '@/containers/FavoriteModelAction'
 import { route } from '@/constants/routes'
 import DeleteProvider from '@/containers/dialogs/DeleteProvider'
+import { BackendUpdateHistory } from '@/containers/BackendUpdateHistory'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { Button } from '@/components/ui/button'
 import { SecretInput } from '@/components/ui/secret-input'
@@ -88,15 +89,20 @@ function ProviderDetail() {
   const [refreshingModels, setRefreshingModels] = useState(false)
   const [isCheckingBackendUpdate, setIsCheckingBackendUpdate] = useState(false)
   const [isInstallingBackend, setIsInstallingBackend] = useState(false)
+  const [isInstallingCuda, setIsInstallingCuda] = useState(false)
   const [importingModel, setImportingModel] = useState<string | null>(null)
   const [apiKeysDraft, setApiKeysDraft] = useState('')
+  const [baseUrlDraft, setBaseUrlDraft] = useState('')
   const [showAdvancedApiKeys, setShowAdvancedApiKeys] = useState(false)
   const [isTestingKeys, setIsTestingKeys] = useState(false)
   const [keyCheckResults, setKeyCheckResults] = useState<
     { index: number; masked: string; status: string; detail: string }[]
   >([])
-  const { checkForUpdate: checkForBackendUpdate, installBackend } =
-    useBackendUpdater()
+  const {
+    checkForUpdate: checkForBackendUpdate,
+    installBackend,
+    installCudaRuntime,
+  } = useBackendUpdater()
   const { providerName } = useParams({ from: Route.id })
   const { getProviderByName, setProviders, updateProvider, addDeletedModels } =
     useModelProvider()
@@ -279,10 +285,16 @@ function ProviderDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providerName, provider?.api_key, JSON.stringify(provider?.api_key_fallbacks ?? [])])
 
+  useEffect(() => {
+    if (provider?.provider !== 'azure') return
+    setBaseUrlDraft(provider.base_url ?? '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providerName, provider?.base_url])
+
   const autoCatalogAttempted = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (!provider) return
-    if (!supportsRemoteCatalog(provider.provider)) return
+    if (!supportsRemoteCatalog(provider)) return
     if (provider.models.length > 0) return
     if (!providerHasRemoteApiKeys(provider)) return
     if (autoCatalogAttempted.current.has(provider.provider)) return
@@ -348,7 +360,20 @@ function ProviderDetail() {
       api_key: nextPrimary,
       api_key_fallbacks: nextFallbacks,
     })
+    // Clearing the key is an explicit user action: purge the keyring secret so
+    // it isn't re-seeded into memory on the next launch. (register handles the
+    // non-empty case via boot sync -> register_provider_config.)
+    if (nextPrimary.length === 0 && nextFallbacks.length === 0) {
+      serviceHub.providers().deleteProviderKeys(providerName)
+    }
   }, [apiKeysDraft, provider, providerName, serviceHub, updateProvider])
+
+  const commitBaseUrlDraft = useCallback(() => {
+    if (!provider || provider.provider !== 'azure') return
+    const next = baseUrlDraft.trim()
+    if (next === (provider.base_url ?? '')) return
+    updateProvider(providerName, { ...provider, base_url: next })
+  }, [baseUrlDraft, provider, providerName, updateProvider])
 
   const rawApiKeyLines = apiKeysDraft.split(/\r?\n/)
   const primaryKeyDraft = (rawApiKeyLines[0] ?? '').trim()
@@ -519,7 +544,7 @@ function ProviderDetail() {
     setRefreshingModels(true)
     try {
       let newModels: Model[]
-      if (supportsRemoteCatalog(provider.provider)) {
+      if (supportsRemoteCatalog(provider)) {
         const catalog = await fetchTopRemoteModels(provider, serviceHub.providers().fetch())
         newModels = catalog.map((m) => ({
           id: m.id,
@@ -547,7 +572,7 @@ function ProviderDetail() {
         })
       }
 
-      if (supportsRemoteCatalog(provider.provider)) {
+      if (supportsRemoteCatalog(provider)) {
         const importedModels = provider.models.filter((m) => m.imported)
         const importedIds = new Set(importedModels.map((m) => m.id))
         const fresh = newModels.filter((m) => !importedIds.has(m.id))
@@ -731,6 +756,34 @@ function ProviderDetail() {
     }
   }, [provider, serviceHub, refreshSettings, t, installBackend])
 
+  const handleInstallCudaRuntime = useCallback(async () => {
+    if (provider?.provider !== 'llamacpp') return
+
+    setIsInstallingCuda(true)
+    try {
+      const selectedFile = await serviceHub.dialog().open({
+        multiple: false,
+        directory: false,
+        filters: [{ name: 'CUDA Runtime Archive', extensions: ['zip', 'gz'] }],
+      })
+
+      if (selectedFile && typeof selectedFile === 'string') {
+        await installCudaRuntime(selectedFile)
+        toast.success(t('settings:backendInstallSuccess'), {
+          description: t('settings:cudaRuntimeInstalled'),
+        })
+      }
+    } catch (error) {
+      console.error('Failed to install CUDA runtime:', error)
+      toast.error(t('settings:backendInstallError'), {
+        description:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      })
+    } finally {
+      setIsInstallingCuda(false)
+    }
+  }, [provider, serviceHub, t, installCudaRuntime])
+
   return (
     <div className="flex flex-col h-svh w-full">
       <HeaderPage>
@@ -756,7 +809,7 @@ function ProviderDetail() {
 
             {provider &&
               !isLocalProvider(provider.provider) &&
-              !supportsRemoteCatalog(provider.provider) && (
+              !supportsRemoteCatalog(provider) && (
                 <div className="flex items-start gap-2 rounded-md border border-main-view-fg/10 bg-main-view-fg/5 px-3 py-2 text-xs text-muted-foreground">
                   <IconInfoCircle size={16} className="mt-0.5 shrink-0" />
                   <span>
@@ -988,10 +1041,33 @@ function ProviderDetail() {
                                   />
                                   <span>
                                     {isInstallingBackend
-                                      ? 'Installing Backend...'
-                                      : 'Install Backend from File'}
+                                      ? t('settings:installingBackend')
+                                      : t('settings:installBackendFromFile')}
                                   </span>
                                 </Button>
+                                {provider?.provider === 'llamacpp' &&
+                                  IS_WINDOWS && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={handleInstallCudaRuntime}
+                                      disabled={isInstallingCuda}
+                                    >
+                                      <IconUpload
+                                        size={12}
+                                        className={cn(
+                                          'text-muted-foreground',
+                                          isInstallingCuda && 'animate-pulse'
+                                        )}
+                                      />
+                                      <span>
+                                        {isInstallingCuda
+                                          ? t('settings:installingCudaRuntime')
+                                          : t('settings:installCudaRuntime')}
+                                      </span>
+                                    </Button>
+                                  )}
+                                <BackendUpdateHistory />
                               </div>
                             )}
                         </>
@@ -1009,6 +1085,27 @@ function ProviderDetail() {
                 provider.provider !== 'llamacpp' &&
                 provider.provider !== 'mlx' && (
                   <Card>
+                    {provider.provider === 'azure' && (
+                      <div className="space-y-2 mb-4">
+                        <div className="space-y-1">
+                          <h2 className="font-medium text-foreground text-base">
+                            {t('providers:baseUrl.title')}
+                          </h2>
+                          <p className="text-sm text-muted-foreground leading-normal">
+                            {t('providers:baseUrl.azureDescription')}
+                          </p>
+                        </div>
+                        <input
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-mono shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          placeholder="https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1"
+                          value={baseUrlDraft}
+                          onChange={(e) => setBaseUrlDraft(e.target.value)}
+                          onBlur={() => commitBaseUrlDraft()}
+                          spellCheck={false}
+                          autoComplete="off"
+                        />
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <div className="space-y-1">
                         <h2 className="font-medium text-foreground text-base">

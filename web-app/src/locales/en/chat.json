@@ -18,5 +18,26 @@
   "imagesAlreadyAttached": "Some images already attached",
   "audioAlreadyAttached": "Some audio files already attached",
   "readAudioFailed": "Failed to read audio file",
-  "readFileFailed": "Failed to read file"
+  "readFileFailed": "Failed to read file",
+  "embeddings": {
+    "title": "Preparing your documents",
+    "description": "Indexing the attached files so they can be searched and cited. This may take a moment for large documents."
+  },
+  "actions": {
+    "regenerate": "Regenerate response",
+    "continue": "Continue generating"
+  },
+  "done": "Done",
+  "webSources": "{{count}} source(s)",
+  "reasoning": {
+    "label": "Reasoning...",
+    "thinking": "Thinking",
+    "usingTool": "{{tool}}...",
+    "showFullTimeline": "Show full timeline",
+    "showCurrentStep": "Show current step only",
+    "thoughtForAWhile": "Thought for a few seconds",
+    "thoughtFor": "Thought for {{duration}}",
+    "workedForAWhile": "Worked for a few seconds",
+    "workedFor": "Worked for {{duration}}"
+  }
 }

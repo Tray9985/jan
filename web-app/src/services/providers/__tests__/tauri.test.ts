@@ -5,6 +5,10 @@ vi.mock('@tauri-apps/plugin-http', () => ({
   fetch: vi.fn(),
 }))
 
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
+}))
+
 vi.mock('@/constants/providers', () => ({
   predefinedProviders: [
     {
@@ -63,9 +67,11 @@ vi.mock('@/lib/models', () => ({
 
 vi.mock('@/lib/provider-api-keys', () => ({
   providerRemoteApiKeyChain: vi.fn().mockReturnValue([]),
+  API_KEY_FALLBACKS_SETTING_KEY: 'api-key-fallbacks',
 }))
 
 import { fetch as fetchTauri } from '@tauri-apps/plugin-http'
+import { invoke } from '@tauri-apps/api/core'
 import { EngineManager } from '@janhq/core'
 import { ExtensionManager } from '@/lib/extension'
 import { providerRemoteApiKeyChain } from '@/lib/provider-api-keys'
@@ -199,18 +205,30 @@ describe('TauriProvidersService', () => {
         .rejects.toThrow('Provider must have base_url configured')
     })
 
-    it('returns model ids from data.data format', async () => {
+    it('returns model metadata from data.data format', async () => {
       vi.mocked(fetchTauri).mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: vi.fn().mockResolvedValue({ data: [{ id: 'model-1' }, { id: 'model-2' }] }),
+        json: vi.fn().mockResolvedValue({
+          data: [
+            { id: 'model-1', display_name: 'Model One', reasoning: true },
+            { id: 'model-2' },
+          ],
+        }),
       } as any)
 
       const result = await svc.fetchModelsFromProvider(baseProvider)
-      expect(result).toEqual(['model-1', 'model-2'])
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: 'model-1',
+          displayName: 'Model One',
+          reasoning: true,
+        }),
+        expect.objectContaining({ id: 'model-2', displayName: 'model-2' }),
+      ])
     })
 
-    it('returns model ids from array format', async () => {
+    it('returns model metadata from array format', async () => {
       vi.mocked(fetchTauri).mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -218,10 +236,10 @@ describe('TauriProvidersService', () => {
       } as any)
 
       const result = await svc.fetchModelsFromProvider(baseProvider)
-      expect(result).toEqual(['a', 'b'])
+      expect(result.map((model) => model.id)).toEqual(['a', 'b'])
     })
 
-    it('returns model ids from data.models format', async () => {
+    it('normalizes string entries from data.models format', async () => {
       vi.mocked(fetchTauri).mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -229,7 +247,7 @@ describe('TauriProvidersService', () => {
       } as any)
 
       const result = await svc.fetchModelsFromProvider(baseProvider)
-      expect(result).toEqual(['m1', 'm2'])
+      expect(result).toEqual([{ id: 'm1' }, { id: 'm2' }])
     })
 
     it('returns empty for unexpected format', async () => {
@@ -352,6 +370,91 @@ describe('TauriProvidersService', () => {
       )
     })
 
+    it('adds default anthropic-version header for anthropic-shaped custom providers', async () => {
+      const provider = {
+        ...baseProvider,
+        provider: 'anthropic_proxy',
+        base_url: 'https://anthropic.example.com/v1',
+      }
+      vi.mocked(fetchTauri).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: [] }),
+      } as any)
+
+      await svc.fetchModelsFromProvider(provider)
+      expect(fetchTauri).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'anthropic-version': '2023-06-01' }),
+        })
+      )
+    })
+
+    it('adds default anthropic-version header when api_type is anthropic despite non-anthropic name/host', async () => {
+      const provider = {
+        ...baseProvider,
+        provider: 'my-gateway',
+        base_url: 'https://gateway.corp.com/v1',
+        api_type: 'anthropic',
+      }
+      vi.mocked(fetchTauri).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: [] }),
+      } as any)
+
+      await svc.fetchModelsFromProvider(provider)
+      expect(fetchTauri).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          }),
+        })
+      )
+    })
+
+    it('does not add anthropic-version for non-anthropic providers', async () => {
+      vi.mocked(fetchTauri).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: [] }),
+      } as any)
+
+      await svc.fetchModelsFromProvider(baseProvider)
+      const headers = vi.mocked(fetchTauri).mock.calls[0][1]?.headers as Record<
+        string,
+        string
+      >
+      expect(headers).not.toHaveProperty('anthropic-version')
+      expect(headers).not.toHaveProperty(
+        'anthropic-dangerous-direct-browser-access'
+      )
+    })
+
+    it('does not override a caller-supplied anthropic-version', async () => {
+      const provider = {
+        ...baseProvider,
+        provider: 'anthropic_proxy',
+        custom_header: [{ header: 'anthropic-version', value: '2099-01-01' }],
+      }
+      vi.mocked(fetchTauri).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ data: [] }),
+      } as any)
+
+      await svc.fetchModelsFromProvider(provider)
+      expect(fetchTauri).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'anthropic-version': '2099-01-01' }),
+        })
+      )
+    })
+
     it('retries with next key on 401 and succeeds', async () => {
       vi.mocked(providerRemoteApiKeyChain).mockReturnValue(['bad-key', 'good-key'])
       vi.mocked(fetchTauri)
@@ -363,7 +466,9 @@ describe('TauriProvidersService', () => {
         } as any)
 
       const result = await svc.fetchModelsFromProvider(baseProvider)
-      expect(result).toEqual(['x'])
+      expect(result).toEqual([
+        expect.objectContaining({ id: 'x', displayName: 'x' }),
+      ])
       expect(fetchTauri).toHaveBeenCalledTimes(2)
     })
 
@@ -425,6 +530,24 @@ describe('TauriProvidersService', () => {
       ])
     })
 
+    it('blanks api-key and api-key-fallbacks so keys never reach settings.json', async () => {
+      const mockUpdate = vi.fn()
+      vi.mocked(ExtensionManager.getInstance).mockReturnValue({
+        getEngine: vi.fn().mockReturnValue({ updateSettings: mockUpdate }),
+      } as any)
+
+      await svc.updateSettings('openai', [
+        { key: 'api-key', controller_type: 'input', controller_props: { value: 'sk-secret' } } as any,
+        { key: 'api-key-fallbacks', controller_type: 'input', controller_props: { value: 'sk-a\nsk-b' } } as any,
+        { key: 'base-url', controller_type: 'input', controller_props: { value: 'https://x' } } as any,
+      ])
+
+      const persisted = mockUpdate.mock.calls[0][0]
+      expect(persisted.find((s: any) => s.key === 'api-key').controllerProps.value).toBe('')
+      expect(persisted.find((s: any) => s.key === 'api-key-fallbacks').controllerProps.value).toBe('')
+      expect(persisted.find((s: any) => s.key === 'base-url').controllerProps.value).toBe('https://x')
+    })
+
     it('rethrows on error', async () => {
       vi.mocked(ExtensionManager.getInstance).mockReturnValue({
         getEngine: vi.fn().mockReturnValue({
@@ -434,6 +557,24 @@ describe('TauriProvidersService', () => {
 
       const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       await expect(svc.updateSettings('test', [])).rejects.toThrow('fail')
+      errSpy.mockRestore()
+    })
+  })
+
+  describe('deleteProviderKeys', () => {
+    it('invokes delete_provider_keys with the provider name', async () => {
+      vi.mocked(invoke).mockResolvedValueOnce(undefined)
+      await svc.deleteProviderKeys('openai')
+      expect(invoke).toHaveBeenCalledWith('delete_provider_keys', {
+        provider: 'openai',
+      })
+    })
+
+    it('swallows and logs errors so a failed delete never throws', async () => {
+      vi.mocked(invoke).mockRejectedValueOnce(new Error('keyring down'))
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      await expect(svc.deleteProviderKeys('openai')).resolves.toBeUndefined()
+      expect(errSpy).toHaveBeenCalled()
       errSpy.mockRestore()
     })
   })

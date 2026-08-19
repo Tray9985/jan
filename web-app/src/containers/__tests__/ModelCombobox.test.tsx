@@ -22,6 +22,7 @@ vi.mock('@/i18n/react-i18next-compat', () => ({
       if (key === 'common:noModelsFoundFor')
         return `No models found for "${options?.searchValue}"`
       if (key === 'common:noModels') return 'No models available'
+      if (key === 'common:refreshModels') return 'Refresh models'
       return key
     },
   }),
@@ -34,7 +35,11 @@ describe('ModelCombobox', () => {
   const defaultProps = {
     value: '',
     onChange: mockOnChange,
-    models: ['gpt-3.5-turbo', 'gpt-4', 'claude-3-haiku'],
+    models: [
+      { id: 'gpt-3.5-turbo' },
+      { id: 'gpt-4' },
+      { id: 'claude-3-haiku' },
+    ],
   }
 
   let bcrSpy: ReturnType<typeof vi.spyOn>

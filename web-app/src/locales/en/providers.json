@@ -6,6 +6,16 @@
   "noNewModels": "No new models found. All available models are already added.",
   "refreshModelsFailed": "Failed to fetch models from {{provider}}. Please check your API key and base URL.",
   "models": "Models",
+  "backendInstalled": "Installed",
+  "backendHistoryShow": "Show update history",
+  "backendHistoryHide": "Hide update history",
+  "backendHistoryLoading": "Loading update history...",
+  "backendHistoryEmpty": "No backend updates recorded yet.",
+  "backendHistoryNone": "none",
+  "backendHistoryUpdated": "Updated",
+  "backendHistoryRolledBack": "Rolled back",
+  "backendHistoryRollbackFailed": "Rollback failed",
+  "backendHistoryFailed": "Failed",
   "chatModels": "Chat Models",
   "embeddingModels": "Embedding Models",
   "embeddingModelsDesc": "Used for RAG and vector search. The selected model becomes the default when generating embeddings.",
@@ -75,6 +85,7 @@
     "tools": "Tools",
     "vision": "Vision",
     "audio": "Audio",
+    "video": "Video",
     "proactive": "Proactive (Experimental)",
     "embeddings": "Embeddings",
     "notAvailable": "Not available yet",
@@ -86,6 +97,10 @@
   "addProvider": "Add Provider",
   "addOpenAIProvider": "Add OpenAI Provider",
   "enterNameForProvider": "Enter name for provider",
+  "baseUrl": {
+    "title": "Base URL",
+    "azureDescription": "Your Azure OpenAI endpoint. Replace YOUR-RESOURCE-NAME with your Azure resource name."
+  },
   "apiKeys": {
     "title": "API keys",
     "description": "Enter your API key. You can add extra keys in Advanced, and Jan will try the next one automatically if a key fails.",
@@ -144,5 +159,5 @@
   "importMlxModel": "Import MLX Model",
   "importMlxModelDescription": "Import a local MLX model folder for use with MLX. MLX models are typically downloaded from HuggingFace and contain safetensors files along with config and tokenizer files.",
   "mlxModelPlaceholder": "my-mlx-model",
-  "importLlamacppModelDescription": "Import a GGUF model file to add it to your collection. Enable multimodal support to attach an mmproj for image or audio input. Embedding models are detected automatically."
+  "importLlamacppModelDescription": "Import a GGUF model file to add it to your collection. Enable multimodal support to attach an mmproj for image or audio input, or draft model support for speculative decoding. Embedding models are detected automatically."
 }

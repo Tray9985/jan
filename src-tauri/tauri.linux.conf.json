@@ -10,17 +10,17 @@
         "minHeight": 740,
         "resizable": true,
         "fullscreen": false,
-        "zoomHotkeysEnabled": true,
+        "zoomHotkeysEnabled": false,
         "center": true,
         "transparent": false,
-        "decorations": true,
+        "decorations": false,
         "dragDropEnabled": false
       }
     ]
   },
   "bundle": {
     "targets": ["deb", "appimage"],
-    "resources": ["resources/pre-install/**/*", "resources/LICENSE", "resources/bin/jan-cli"],
+    "resources": ["resources/LICENSE", "resources/bin/jan-cli"],
     "externalBin": ["resources/bin/uv"],
     "linux": {
       "appimage": {

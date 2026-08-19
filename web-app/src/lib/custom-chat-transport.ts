@@ -9,7 +9,9 @@ import {
   type Tool,
   type LanguageModelUsage,
   jsonSchema,
+  InvalidToolInputError,
 } from 'ai'
+import { repairToolArgs } from './toolCallRepair'
 import { useServiceStore } from '@/hooks/useServiceHub'
 import { useToolAvailable } from '@/hooks/useToolAvailable'
 import { ModelFactory } from './model-factory'
@@ -18,9 +20,24 @@ import { useAssistant } from '@/hooks/useAssistant'
 import { useThreads } from '@/hooks/useThreads'
 import { useAttachments } from '@/hooks/useAttachments'
 import { useMCPServers } from '@/hooks/useMCPServers'
+import { useWebSearchConfig } from '@/hooks/useWebSearchConfig'
+import {
+  WEB_SEARCH_DESCRIPTION,
+  WEB_SEARCH_INPUT_SCHEMA,
+  WEB_FETCH_DESCRIPTION,
+  WEB_FETCH_INPUT_SCHEMA,
+} from '@/lib/webSearchTool'
 import { useAppState } from '@/hooks/useAppState'
-import { invoke } from '@tauri-apps/api/core'
+import { unloadLlamaModel, getLoadedModels } from '@janhq/tauri-plugin-llamacpp-api'
+import { describeEngineError } from '@/lib/engineError'
+import { i18n } from '@/i18n/react-i18next-compat'
 import { ExtensionManager } from '@/lib/extension'
+import { getLlamacppExtension } from '@/lib/llamacppRouterProps'
+import {
+  tokensForThinkingBudgetLevel,
+  isThinkingBudgetLevelKey,
+} from '@/lib/thinkingBudget'
+import { buildReasoningProviderOptions } from '@/lib/reasoningProviderOptions'
 import {
   ExtensionTypeEnum,
   VectorDBExtension,
@@ -35,8 +52,8 @@ import {
 import { mcpOrchestrator } from '@/lib/mcp-orchestrator'
 import { isRouterModelSelectable } from '@/lib/mcp-router-model-filter'
 import { encodeAudioSentinel, parseAudioDataUrl } from '@/lib/audio-sentinel'
-import { extractFilesFromPrompt, type FileMetadata } from '@/lib/fileMetadata'
-import { isPredefinedRemoteProvider, getProviderApiType } from '@/lib/providerCaps'
+import { encodeVideoSentinel, parseVideoDataUrl } from '@/lib/video-sentinel'
+import { isPredefinedRemoteProvider } from '@/lib/providerCaps'
 import { paramsSettings } from '@/lib/predefinedParams'
 
 export type TokenUsageCallback = (
@@ -51,6 +68,8 @@ export type OnFinishCallback = (params: {
   message: UIMessage
   isAbort?: boolean
 }) => void
+/** Partial assistant output replayed as a prefill to resume a stopped turn. */
+export type ContinuationContent = { text?: string; reasoning?: string }
 export type ServiceHub = {
   rag(): {
     getTools(): Promise<
@@ -115,6 +134,65 @@ function extractModelSamplingDefaults(
     }
   }
   return out
+}
+
+/**
+ * Per-model chat-template kwargs the user set in the model settings sidebar,
+ * stored as an object under `settings.chat_template_kwargs`. Only primitive
+ * values are forwarded; `enable_thinking` is owned by the reasoning control
+ * and is dropped here.
+ */
+function extractModelTemplateKwargs(
+  model: Model | null | undefined
+): Record<string, boolean | number | string> {
+  const raw: unknown =
+    model?.settings?.chat_template_kwargs?.controller_props?.value
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, boolean | number | string> = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (key === 'enable_thinking') continue
+    const t = typeof value
+    if (t === 'boolean' || t === 'number' || t === 'string') {
+      out[key] = value as boolean | number | string
+    }
+  }
+  return out
+}
+
+/**
+ * `thinking_budget_tokens` is stored as a symbolic level (low/medium/high/
+ * xhigh/unlimited), not a frozen absolute count — llama.cpp's --fit can pick
+ * a runtime n_ctx far from the configured/default size, and that's only known
+ * once the model is actually loaded. Resolve against the live n_ctx here, at
+ * send time, instead of whatever context size was in scope when the level
+ * was picked in ChatInput.
+ */
+async function resolveThinkingBudgetTokens(
+  model: Model | null | undefined,
+  modelId: string | undefined
+): Promise<number | undefined> {
+  const rawLevel = model?.settings?.thinking_budget_tokens?.controller_props?.value
+  if (!isThinkingBudgetLevelKey(rawLevel)) return undefined
+  if (rawLevel === 'unlimited') return -1
+
+  let contextSize: number | undefined
+  if (modelId) {
+    try {
+      contextSize = (await getLlamacppExtension()?.getModelProps?.(modelId))?.nCtx
+    } catch {
+      // Model not loaded yet or router unreachable; fall through to configured/default.
+    }
+  }
+  if (!contextSize) {
+    const configured = model?.settings?.ctx_len?.controller_props?.value
+    contextSize =
+      typeof configured === 'number'
+        ? configured
+        : typeof configured === 'string' && configured !== ''
+          ? Number(configured)
+          : undefined
+  }
+  return tokensForThinkingBudgetLevel(rawLevel, contextSize || 8192)
 }
 
 /**
@@ -430,6 +508,63 @@ export function resolveOrphanToolCalls(messages: UIMessage[]): UIMessage[] {
   })
 }
 
+/**
+ * Split any assistant message whose parts place non-tool content (text,
+ * reasoning, file) AFTER tool-call parts into consecutive assistant messages,
+ * one per "wave". This is required for two reasons:
+ *
+ * 1. Correctness: the Claude API rejects an assistant turn that interleaves
+ *    tool_use with text (error 400); it needs tool_use / tool_result pairing.
+ * 2. Prompt-cache stability: when a tool-call turn completes, the AI SDK stores
+ *    the follow-up text in the SAME assistant UIMessage as the tool call, so
+ *    `convertToModelMessages` renders `assistant(tool-call, text)` then
+ *    `tool(result)`. But that turn was generated in two requests — the cache
+ *    was seeded with `assistant(tool-call)` then `tool(result)`, with no text
+ *    yet. Splitting restores the generated order `assistant(tool-call)` ->
+ *    `tool(result)` -> `assistant(text)`, so the prefix stays byte-identical
+ *    across turns and llama.cpp reuses the KV cache.
+ *
+ * A message with no tool parts, or with all non-tool parts before the tool
+ * parts, is returned unchanged.
+ */
+export function splitAssistantToolWaves(messages: UIMessage[]): UIMessage[] {
+  return messages.flatMap((message) => {
+    if (message.role !== 'assistant') return [message]
+
+    const parts = Array.isArray(message.parts) ? message.parts : []
+    if (parts.length === 0) return [message]
+
+    const isToolPart = (p: (typeof parts)[number]) =>
+      typeof p.type === 'string' && p.type.startsWith('tool-')
+
+    const waves: (typeof parts)[] = []
+    let currentWave: typeof parts = []
+    let seenToolParts = false
+
+    for (const part of parts) {
+      if (isToolPart(part)) {
+        seenToolParts = true
+        currentWave.push(part)
+      } else if (seenToolParts) {
+        waves.push(currentWave)
+        currentWave = [part]
+        seenToolParts = false
+      } else {
+        currentWave.push(part)
+      }
+    }
+    if (currentWave.length > 0) waves.push(currentWave)
+
+    if (waves.length <= 1) return [message]
+
+    return waves.map((waveParts, i) => ({
+      ...message,
+      id: `${message.id}_w${i}`,
+      parts: waveParts,
+    }))
+  })
+}
+
 export function coalesceMessagesForAlternation(
   messages: UIMessage[]
 ): UIMessage[] {
@@ -452,6 +587,26 @@ export function coalesceMessagesForAlternation(
   return out
 }
 
+const TOOL_RESPONSE_ONLY = /^<tool_response>[\s\S]*<\/tool_response>$/
+
+/**
+ * A "genuine" user query is a user-role message with non-empty text that isn't
+ * entirely a <tool_response> wrapper. Qwen3.5+ chat templates raise
+ * "No user query found in messages" when none survives — e.g. the user deletes
+ * the only real user turn (leaving orphaned assistant/tool turns) or token
+ * eviction drops it. Guard the send so we fail with a clear message instead.
+ */
+export function hasGenuineUserQuery(messages: UIMessage[]): boolean {
+  return messages.some((m) => {
+    if (m.role !== 'user') return false
+    const text = (m.parts ?? [])
+      .map((p) => (p.type === 'text' ? (p.text ?? '') : ''))
+      .join('')
+      .trim()
+    return text.length > 0 && !TOOL_RESPONSE_ONLY.test(text)
+  })
+}
+
 type ToolInputSchema = Record<string, unknown>
 
 // Keep this behavior aligned with `normalize_openai_tool_parameters_schema` in Rust.
@@ -462,24 +617,41 @@ export function normalizeToolInputSchema(
 }
 
 /** Text from the most recent user message (for MCP server routing). */
+type ChatTemplateKwargs = Record<string, boolean | number | string>
+
 /**
- * Build the per-request reasoning kwargs for llama-server's chat completions
- * endpoint. The server parses `chat_template_kwargs.enable_thinking` via
- * `json_value(...).dump()` (server-common.cpp:1056-1069) and rejects values
- * that serialize to a quoted JSON string — so this must emit a JSON boolean
- * (`true` / `false`), never the strings `"true"` / `"false"`. 'auto' omits
- * the kwarg entirely so the server falls back to its --reasoning-budget
- * default. The function is a no-op for non-llamacpp providers.
+ * Build the per-request `chat_template_kwargs` for llama-server's chat
+ * completions endpoint, merging the reasoning toggle with any user-set
+ * per-model template kwargs (e.g. `preserve_thinking`) into one object. The
+ * server parses each value via `json_value(...).dump()`
+ * (server-common.cpp:1056-1069) and rejects values that serialize to a quoted
+ * JSON string where a boolean/number is expected — so this emits real JSON
+ * types, never the strings `"true"` / `"false"`. Reasoning 'auto'/undefined
+ * omits `enable_thinking` so the server falls back to its --reasoning-budget
+ * default; `enable_thinking` from the reasoning control always wins over a
+ * user-supplied value. The function is a no-op for non-llamacpp providers.
  */
 export function buildLlamacppReasoningParams(
   providerName: string | null | undefined,
-  reasoning: 'auto' | 'on' | 'off' | undefined
-): { chat_template_kwargs?: { enable_thinking: boolean } } {
+  reasoning: 'auto' | 'on' | 'off' | undefined,
+  userKwargs?: ChatTemplateKwargs | null
+): { chat_template_kwargs?: ChatTemplateKwargs } {
   if (providerName !== 'llamacpp') return {}
-  if (reasoning !== 'on' && reasoning !== 'off') return {}
-  return {
-    chat_template_kwargs: { enable_thinking: reasoning === 'on' },
+  const kwargs: ChatTemplateKwargs = {}
+  if (userKwargs && typeof userKwargs === 'object') {
+    for (const [key, value] of Object.entries(userKwargs)) {
+      if (key === 'enable_thinking') continue
+      const t = typeof value
+      if (t === 'boolean' || t === 'number' || t === 'string') {
+        kwargs[key] = value
+      }
+    }
   }
+  if (reasoning === 'on' || reasoning === 'off') {
+    kwargs.enable_thinking = reasoning === 'on'
+  }
+  if (Object.keys(kwargs).length === 0) return {}
+  return { chat_template_kwargs: kwargs }
 }
 
 function extractLatestUserText(messages: UIMessage[]): string {
@@ -500,17 +672,18 @@ function extractLatestUserText(messages: UIMessage[]): string {
 }
 
 /**
- * Wraps a UIMessageChunk stream so that when the first `text-start` chunk
- * arrives, a `text-delta` carrying `prefixText` is immediately injected into
- * the same text block. This makes the new message show the partial content
- * right away while continuation tokens stream in after it.
+ * Wraps a UIMessageChunk stream so the partial content of a resumed turn is
+ * injected back into the new message right away: `reasoning` into the first
+ * `reasoning-start` block and `text` into the first `text-start` block. This
+ * makes the continuation look seamless instead of dropping the partial output.
  */
-function prependTextDeltaToUIStream(
+function prependContinuationToUIStream(
   stream: ReadableStream<UIMessageChunk>,
-  prefixText: string
+  prefix: ContinuationContent
 ): ReadableStream<UIMessageChunk> {
   const reader = stream.getReader()
-  let prefixEmitted = false
+  let reasoningEmitted = !prefix.reasoning
+  let textEmitted = !prefix.text
   return new ReadableStream<UIMessageChunk>({
     async pull(controller) {
       try {
@@ -520,10 +693,24 @@ function prependTextDeltaToUIStream(
           return
         }
         controller.enqueue(value)
-        if (!prefixEmitted && (value as { type: string }).type === 'text-start') {
-          prefixEmitted = true
-          const id = (value as { type: 'text-start'; id: string }).id
-          controller.enqueue({ type: 'text-delta', id, delta: prefixText } as UIMessageChunk)
+        const type = (value as { type: string }).type
+        if (!reasoningEmitted && type === 'reasoning-start') {
+          reasoningEmitted = true
+          const id = (value as { id: string }).id
+          controller.enqueue({
+            type: 'reasoning-delta',
+            id,
+            delta: prefix.reasoning,
+          } as UIMessageChunk)
+        }
+        if (!textEmitted && type === 'text-start') {
+          textEmitted = true
+          const id = (value as { id: string }).id
+          controller.enqueue({
+            type: 'text-delta',
+            id,
+            delta: prefix.text,
+          } as UIMessageChunk)
         }
       } catch (error) {
         controller.error(error)
@@ -540,6 +727,12 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
   private routerModel: LanguageModel | null = null
   private routerModelKey = ''
   private tools: Record<string, Tool> = {}
+  // Smart tool routing selects tools from the latest user message, which would
+  // change the tool set (and thus the cached prompt prefix) every turn. Freeze
+  // the routed set for the thread's lifetime so the prefix stays stable;
+  // re-route only when the connected servers or disabled-tool set changes.
+  private frozenRoutedTools: MCPTool[] | null = null
+  private frozenRoutedSig = ''
   private onTokenUsage?: TokenUsageCallback
   private hasDocuments = false
   private modelSupportsTools = false
@@ -547,9 +740,15 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
   private systemMessage?: string
   private serviceHub: ServiceHub | null
   private threadId?: string
-  private continueFromContent: string | null = null
+  private continueFromContent: ContinuationContent | null = null
   /** Latest user message text — used by the MCP orchestrator for tool routing. */
   private lastUserMessage = ''
+  /**
+   * Monotonic per-request token. The transport instance is reused across
+   * regenerate, so a superseded request's terminal onError/onFinish must not
+   * clear loading/stream state that the newer request has already set.
+   */
+  private streamGeneration = 0
 
   constructor(systemMessage?: string, threadId?: string) {
     this.systemMessage = systemMessage
@@ -621,13 +820,8 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
 
     const toolsRecord: Record<string, Tool> = {}
 
-    // Get disabled tools for this thread
-    const getDisabledToolsForThread =
-      useToolAvailable.getState().getDisabledToolsForThread
-    const disabledToolKeys = this.threadId
-      ? getDisabledToolsForThread(this.threadId)
-      : useToolAvailable.getState().getDefaultDisabledTools()
-    // Helper to check if a tool is disabled
+    // Tool availability is global (shared across all chats).
+    const disabledToolKeys = useToolAvailable.getState().getDisabledTools()
     const isToolDisabled = (serverName: string, toolName: string): boolean => {
       const toolKey = `${serverName}::${toolName}`
       return disabledToolKeys.includes(toolKey)
@@ -706,26 +900,37 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
           mcpService.getToolsForServers &&
           mcpService.getServerSummaries
         ) {
-          const routerModel =
-            mcpSettings.useLightweightRouterModel &&
-            mcpSettings.routerModelProvider.trim() &&
-            mcpSettings.routerModelId.trim()
-              ? (await this.resolveRouterModel(mcpSettings)) ?? this.model
-              : this.model
-          mcpTools = await mcpOrchestrator.getRelevantTools(
-            this.lastUserMessage,
-            {
-              getTools: () => mcpService.getTools(),
-              getToolsForServers: (names) =>
-                mcpService.getToolsForServers!(names),
-              getServerSummaries: () => mcpService.getServerSummaries!(),
-            },
-            disabledToolKeys,
-            {
-              routerModel,
-              abortSignal,
-            }
-          )
+          const summaries = await mcpService.getServerSummaries!()
+          const routedSig = JSON.stringify({
+            servers: summaries.map((s) => s.name).sort(),
+            disabled: [...disabledToolKeys].sort(),
+          })
+          if (this.frozenRoutedTools && this.frozenRoutedSig === routedSig) {
+            mcpTools = this.frozenRoutedTools
+          } else {
+            const routerModel =
+              mcpSettings.useLightweightRouterModel &&
+              mcpSettings.routerModelProvider.trim() &&
+              mcpSettings.routerModelId.trim()
+                ? (await this.resolveRouterModel(mcpSettings)) ?? this.model
+                : this.model
+            mcpTools = await mcpOrchestrator.getRelevantTools(
+              this.lastUserMessage,
+              {
+                getTools: () => mcpService.getTools(),
+                getToolsForServers: (names) =>
+                  mcpService.getToolsForServers!(names),
+                getServerSummaries: () => Promise.resolve(summaries),
+              },
+              disabledToolKeys,
+              {
+                routerModel,
+                abortSignal,
+              }
+            )
+            this.frozenRoutedTools = mcpTools
+            this.frozenRoutedSig = routedSig
+          }
         } else {
           mcpTools = await mcpService.getTools()
         }
@@ -752,6 +957,19 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
         }
       } catch (error) {
         console.warn('Failed to load MCP tools:', error)
+      }
+
+      // Native web tools, provided by the websearch plugin (not an MCP server).
+      // Advertised whenever the user has web search enabled.
+      if (useWebSearchConfig.getState().webSearchEnabled) {
+        toolsRecord['web_search'] = {
+          description: WEB_SEARCH_DESCRIPTION,
+          inputSchema: jsonSchema(WEB_SEARCH_INPUT_SCHEMA as Record<string, unknown>),
+        } as Tool
+        toolsRecord['web_fetch'] = {
+          description: WEB_FETCH_DESCRIPTION,
+          inputSchema: jsonSchema(WEB_FETCH_INPUT_SCHEMA as Record<string, unknown>),
+        } as Tool
       }
     }
 
@@ -814,10 +1032,71 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
 
   /**
    * Set partial assistant content to send as a prefill on the next request,
-   * so the model continues generation from where it left off.
+   * so the model continues generation from where it left off. Accepts a plain
+   * text string, or structured content carrying reasoning so a turn stopped
+   * mid-thinking resumes inside its reasoning block.
    */
-  setContinueFromContent(content: string) {
-    this.continueFromContent = content
+  setContinueFromContent(content: string | ContinuationContent) {
+    const normalized: ContinuationContent =
+      typeof content === 'string' ? { text: content } : content
+    this.continueFromContent =
+      normalized.text || normalized.reasoning ? normalized : null
+  }
+
+  /**
+   * Race model creation (which blocks on llama-server load, up to 600s)
+   * against the request's abort signal. `invoke()` has no cancellation of
+   * its own, so an abort during "Loading model..." would otherwise be
+   * silently ignored until load either finishes or times out. On abort we
+   * fire-and-forget an unload of the (possibly still-loading) model so the
+   * router doesn't keep spawning/holding a llama-server nobody wants.
+   */
+  private createModelOrAbort(
+    modelId: string,
+    provider: ProviderObject,
+    parameters: Record<string, unknown>,
+    providerId: string,
+    abortSignal: AbortSignal | undefined
+  ): Promise<LanguageModel> {
+    const modelPromise = ModelFactory.createModel(modelId, provider, parameters)
+    if (!abortSignal) return modelPromise
+
+    // Target lib is ES2021 here (see tsconfig.app.json), predating
+    // Promise.withResolvers (ES2024), so the executor form is required.
+    return new Promise<LanguageModel>((resolve, reject) => {
+      const onAbort = () => {
+        if (providerId === 'llamacpp') {
+          // Call the plugin's unload command directly instead of through the
+          // extension's `unload()` method: that method first looks up an
+          // active *loaded* session and throws if none is found, but a
+          // model aborted mid-load is still in the "loading" state (not
+          // "loaded") and would never resolve to a session -- silently
+          // skipping the unload and leaking the still-loading llama-server.
+          // See https://github.com/janhq/jan/issues/8432.
+          unloadLlamaModel(modelId).catch(() => {
+            // Best-effort: model may not have started loading yet, or may
+            // already have finished/failed on its own.
+          })
+        }
+        const err = new Error('Aborted')
+        err.name = 'AbortError'
+        reject(err)
+      }
+      if (abortSignal.aborted) {
+        onAbort()
+        return
+      }
+      abortSignal.addEventListener('abort', onAbort, { once: true })
+      modelPromise
+        .then((model) => {
+          abortSignal.removeEventListener('abort', onAbort)
+          resolve(model)
+        })
+        .catch((error) => {
+          abortSignal.removeEventListener('abort', onAbort)
+          reject(error)
+        })
+    })
   }
 
   async sendMessages(
@@ -831,6 +1110,7 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     } & ChatRequestOptions
   ): Promise<ReadableStream<UIMessageChunk>> {
     const threadId = this.threadId ?? options.chatId
+    const myGeneration = ++this.streamGeneration
     useAppState.getState().setCurrentStreamThreadId(threadId)
     // Capture the effective provider name early so the Anthropic serial
     // tool-use repair later uses the same value that was used to create the
@@ -859,17 +1139,18 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
           | 'auto'
           | 'on'
           | 'off'
-          | undefined
+          | undefined,
+        extractModelTemplateKwargs(selectedModel)
       )
 
       if (providerId === 'llamacpp') {
         try {
-          const loaded = await invoke<string[]>(
-            'plugin:llamacpp|get_loaded_models'
-          )
+          const loaded = await getLoadedModels()
           if (!loaded.includes(modelId)) {
             useAppState.getState().updateLoadingModel(true)
             useAppState.getState().updateThreadLoadingModel(threadId, true)
+            useAppState.getState().updateModelLoadProgress(undefined)
+            useAppState.getState().updateThreadModelLoadProgress(threadId, undefined)
           }
         } catch {
           // Ignore probe failures; the router will still load on demand
@@ -880,6 +1161,15 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       // overrides (router mode can't bake them into CLI args). Assistant
       // params still win — they're the explicit per-conversation override.
       const modelSamplingDefaults = extractModelSamplingDefaults(selectedModel)
+      if (providerId === 'llamacpp') {
+        const thinkingBudgetTokens = await resolveThinkingBudgetTokens(
+          selectedModel,
+          modelId
+        )
+        if (thinkingBudgetTokens !== undefined) {
+          modelSamplingDefaults.thinking_budget_tokens = thinkingBudgetTokens
+        }
+      }
 
       // Create the model before refreshing tools so the MCP orchestrator can run
       // structured LLM routing when many servers are connected.
@@ -891,87 +1181,57 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       if (isPredefinedRemoteProvider(effectiveProviderName)) {
         for (const key of Object.keys(paramsSettings)) delete mergedParams[key]
       }
-      this.model = await ModelFactory.createModel(
+      // Pin chat to slot 0 so llama-server reuses this thread's cached KV
+      // prefix across turns; title generation uses the reserved background
+      // slot (RESERVED_BACKGROUND_SLOTS) and can't evict it.
+      if (providerId === 'llamacpp') {
+        mergedParams.id_slot = 0
+      }
+      this.model = await this.createModelOrAbort(
         modelId,
         updatedProvider ?? provider,
-        mergedParams
+        mergedParams,
+        providerId,
+        options.abortSignal
       )
       useAppState.getState().updateLoadingModel(false)
       useAppState.getState().updateThreadLoadingModel(threadId, false)
+      useAppState.getState().updateModelLoadProgress(undefined)
+      useAppState.getState().updateThreadModelLoadProgress(threadId, undefined)
     } catch (error) {
       useAppState.getState().updateLoadingModel(false)
       useAppState.getState().updateThreadLoadingModel(threadId, false)
+      useAppState.getState().updateModelLoadProgress(undefined)
+      useAppState.getState().updateThreadModelLoadProgress(threadId, undefined)
       console.error('Failed to create model:', error)
+      // Preserve AbortError identity so callers/UI can tell a user-initiated
+      // Stop from an actual model-load failure.
+      if (error instanceof Error && error.name === 'AbortError') throw error
       throw new Error(
-        `Failed to create model: ${error instanceof Error ? error.message : JSON.stringify(error)}`
+        i18n.t('model-errors:createModelFailed', {
+          reason: describeEngineError(error),
+        })
       )
     }
 
     await this.refreshTools(options.abortSignal)
 
-    // Fix for Anthropic serial tool-use (error 400): when an assistant message
-    // contains tool parts interleaved with text parts (serial tool calls),
-    // split it into separate messages so convertToModelMessages produces the
-    // tool_use / tool_result pairing that the Claude API requires.
-    // See: https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use#parallel-tool-use
-    const effectiveApiType = getProviderApiType(provider)
-    let messagesToConvert = (() => {
-      if (effectiveApiType !== 'anthropic') {
-        return options.messages
-      }
-      return options.messages.flatMap((message) => {
-        if (message.role !== 'assistant') return [message]
-
-        const parts = Array.isArray(message.parts) ? message.parts : []
-        if (parts.length === 0) return [message]
-
-        const isToolPart = (p: (typeof parts)[number]) =>
-          p.type.startsWith('tool-')
-
-        const waves: (typeof parts)[] = []
-        let currentWave: typeof parts = []
-        let seenToolParts = false
-
-        for (const part of parts) {
-          if (isToolPart(part)) {
-            seenToolParts = true
-            currentWave.push(part)
-          } else if (!isToolPart(part) && seenToolParts) {
-            // Any non-tool part (text, reasoning, file, etc.) after tool parts
-            // marks the start of a new wave
-            waves.push(currentWave)
-            currentWave = [part]
-            seenToolParts = false
-          } else {
-            currentWave.push(part)
-          }
-        }
-        if (currentWave.length > 0) waves.push(currentWave)
-
-        // No serial tool calls detected — return original message unchanged
-        if (waves.length <= 1) return [message]
-
-        return waves.map((waveParts, i) => ({
-          ...message,
-          id: `${message.id}_w${i}`,
-          parts: waveParts,
-        }))
-      })
-    })()
+    // Split assistant turns that place text after tool calls into separate
+    // messages. Required by the Claude API (tool_use / tool_result pairing) and
+    // it keeps the prompt prefix byte-identical across turns so llama.cpp reuses
+    // the KV cache. See `splitAssistantToolWaves`.
+    const messagesToConvert = splitAssistantToolWaves(options.messages)
 
     const inferenceParams = this.getActiveInferenceParams()
 
     const selectedModel = useModelProvider.getState().selectedModel
 
-    const { messages: strippedMessages, files: attachedFiles } =
-      this.extractFileMetadataForSystem(messagesToConvert)
-    messagesToConvert = strippedMessages
-    const filesAddendum = this.buildFilesSystemAddendum(attachedFiles)
-    const rawSystem = filesAddendum
-      ? this.systemMessage
-        ? `${this.systemMessage}\n\n${filesAddendum}`
-        : filesAddendum
-      : this.systemMessage
+    const filesInstruction = this.buildFilesSystemInstruction(messagesToConvert)
+    const webSearchInstruction = this.buildWebSearchSystemInstruction()
+    const rawSystem =
+      [this.systemMessage, filesInstruction, webSearchInstruction]
+        .filter((s) => typeof s === 'string' && s.trim().length > 0)
+        .join('\n\n') || undefined
     // Drop whitespace-only system prompts so we don't send a useless system
     // turn that some chat templates still wrap into special tokens.
     const effectiveSystem =
@@ -1036,15 +1296,26 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       }
     }
 
+    // Many chat templates (Qwen3.5+) reject a window with no genuine user query
+    // and throw a cryptic Jinja error. Fail early with a clear message when
+    // deletion/eviction has left no real user turn to respond to.
+    if (!hasGenuineUserQuery(effectiveMessages)) {
+      throw new Error(
+        'This conversation has no user message to respond to. Add a message, or regenerate from a turn that includes your question.'
+      )
+    }
+
     const modelSupportsVision =
       selectedModel?.capabilities?.includes('vision') ?? false
     const baseMessages = await convertToModelMessages(
       coalesceMessagesForAlternation(
         resolveOrphanToolCalls(
-          this.encodeAudioAttachments(
-            stripUnsupportedImageParts(
-              this.mapUserInlineAttachments(effectiveMessages),
-              modelSupportsVision
+          this.encodeVideoAttachments(
+            this.encodeAudioAttachments(
+              stripUnsupportedImageParts(
+                this.mapUserInlineAttachments(effectiveMessages),
+                modelSupportsVision
+              )
             )
           )
         )
@@ -1056,7 +1327,25 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     const continueContent = this.continueFromContent
     this.continueFromContent = null
     const modelMessages = continueContent
-      ? [...baseMessages, { role: 'assistant' as const, content: continueContent }]
+      ? [
+          ...baseMessages,
+          {
+            role: 'assistant' as const,
+            content: [
+              ...(continueContent.reasoning
+                ? [
+                    {
+                      type: 'reasoning' as const,
+                      text: continueContent.reasoning,
+                    },
+                  ]
+                : []),
+              ...(continueContent.text
+                ? [{ type: 'text' as const, text: continueContent.text }]
+                : []),
+            ],
+          },
+        ]
       : baseMessages
 
     // Include tools only if we have tools loaded AND model supports them
@@ -1064,9 +1353,18 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     const modelSupportsTools = selectedModel?.capabilities?.includes('tools') ?? this.modelSupportsTools
     const shouldEnableTools = hasTools && modelSupportsTools
 
+    // Cloud providers take reasoning via the AI SDK's per-request
+    // providerOptions (native thinking config), not the raw body.
+    const reasoningProviderOptions = buildReasoningProviderOptions(
+      providerId,
+      useModelProvider.getState().selectedModel
+    )
+
     let streamStartTime: number | undefined
     useAppState.getState().updatePromptProgress(undefined)
     useAppState.getState().updateThreadPromptProgress(threadId, undefined)
+    useAppState.getState().updateLiveTokenStats(undefined)
+    useAppState.getState().updateThreadLiveTokenStats(threadId, undefined)
 
     const result = streamText({
       model: this.model,
@@ -1076,6 +1374,18 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       toolChoice: shouldEnableTools ? 'auto' : undefined,
       system: effectiveSystem,
       ...(maxOutputTokens !== undefined ? { maxTokens: maxOutputTokens } : {}),
+      ...(reasoningProviderOptions
+        ? { providerOptions: reasoningProviderOptions }
+        : {}),
+      experimental_repairToolCall: async ({ toolCall, error }) => {
+        // Windows paths (`C:\Users\...`) contain invalid JSON escapes that make
+        // the SDK's argument parse fail. Re-escape lone backslashes and retry
+        // so the tool receives the intended path instead of looping on failure.
+        if (!InvalidToolInputError.isInstance(error)) return null
+        const repaired = repairToolArgs(toolCall.input)
+        if (!repaired) return null
+        return { ...toolCall, input: JSON.stringify(repaired) }
+      },
     })
 
     let tokensPerSecond = 0
@@ -1145,12 +1455,18 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
         return undefined
       },
       onError: (error) => {
-        useAppState.getState().updatePromptProgress(undefined)
-        useAppState.getState().updateLoadingModel(false)
-        useAppState.getState().updateThreadPromptProgress(threadId, undefined)
-        useAppState.getState().updateThreadLoadingModel(threadId, false)
-        if (useAppState.getState().currentStreamThreadId === threadId) {
-          useAppState.getState().setCurrentStreamThreadId(undefined)
+        // A superseded request (e.g. after Reload) must not clear loading/stream
+        // state the newer request already owns.
+        if (this.streamGeneration === myGeneration) {
+          useAppState.getState().updatePromptProgress(undefined)
+          useAppState.getState().updateLoadingModel(false)
+          useAppState.getState().updateThreadPromptProgress(threadId, undefined)
+          useAppState.getState().updateThreadLoadingModel(threadId, false)
+          useAppState.getState().updateLiveTokenStats(undefined)
+          useAppState.getState().updateThreadLiveTokenStats(threadId, undefined)
+          if (useAppState.getState().currentStreamThreadId === threadId) {
+            useAppState.getState().setCurrentStreamThreadId(undefined)
+          }
         }
         const unwrapped = unwrapRetryError(error)
         const rawMessage = unwrapped == null
@@ -1169,12 +1485,16 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
         return baseMessage
       },
       onFinish: ({ responseMessage }) => {
-        useAppState.getState().updatePromptProgress(undefined)
-        useAppState.getState().updateLoadingModel(false)
-        useAppState.getState().updateThreadPromptProgress(threadId, undefined)
-        useAppState.getState().updateThreadLoadingModel(threadId, false)
-        if (useAppState.getState().currentStreamThreadId === threadId) {
-          useAppState.getState().setCurrentStreamThreadId(undefined)
+        if (this.streamGeneration === myGeneration) {
+          useAppState.getState().updatePromptProgress(undefined)
+          useAppState.getState().updateLoadingModel(false)
+          useAppState.getState().updateThreadPromptProgress(threadId, undefined)
+          useAppState.getState().updateThreadLoadingModel(threadId, false)
+          useAppState.getState().updateLiveTokenStats(undefined)
+          useAppState.getState().updateThreadLiveTokenStats(threadId, undefined)
+          if (useAppState.getState().currentStreamThreadId === threadId) {
+            useAppState.getState().setCurrentStreamThreadId(undefined)
+          }
         }
         if (responseMessage) {
           const metadata = responseMessage.metadata as
@@ -1192,7 +1512,7 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     // very first text-delta so the new message immediately shows it and the
     // user sees a seamless continuation rather than an empty box.
     const finalStream = continueContent
-      ? prependTextDeltaToUIStream(uiStream, continueContent)
+      ? prependContinuationToUIStream(uiStream, continueContent)
       : uiStream
 
     return finalStream
@@ -1237,70 +1557,80 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     })
   }
 
-  /**
-   *  Map user messages to include inline attachments in the message parts
-   * @param messages
-   * @returns
-   */
-  /**
-   * Strip persisted [ATTACHED_FILES] blocks from user message text and return
-   * the aggregated, deduped file metadata so it can be folded into the system
-   * prompt instead of the user turn. The stored ThreadMessages are untouched
-   * (UI still relies on the inline block for display); this only affects what
-   * is sent to the model.
-   */
-  extractFileMetadataForSystem(
-    messages: UIMessage[]
-  ): { messages: UIMessage[]; files: FileMetadata[] } {
-    const byId = new Map<string, FileMetadata>()
-    const next = messages.map((message) => {
+  // Replace video `file` parts on user messages with sentinel-bearing `text`
+  // parts, same mechanism as encodeAudioAttachments. The fetch wrapper in
+  // model-factory.ts decodes these into llama-server `input_video` content
+  // parts (frames decoded via the vision encoder + ffmpeg on the server).
+  encodeVideoAttachments(messages: UIMessage[]): UIMessage[] {
+    return messages.map((message) => {
       if (message.role !== 'user' || !Array.isArray(message.parts)) return message
       let touched = false
-      const parts = message.parts.map((part) => {
+      const nextParts = message.parts.map((part) => {
         if (
-          part?.type === 'text' &&
-          typeof (part as { text?: string }).text === 'string' &&
-          (part as { text: string }).text.includes('[ATTACHED_FILES]')
+          part?.type === 'file' &&
+          typeof (part as { mediaType?: string }).mediaType === 'string' &&
+          (part as { mediaType: string }).mediaType.startsWith('video/') &&
+          typeof (part as { url?: string }).url === 'string'
         ) {
-          const { files, cleanPrompt } = extractFilesFromPrompt(
-            (part as { text: string }).text
-          )
-          if (files.length === 0) return part
-          for (const f of files) {
-            if (!byId.has(f.id)) byId.set(f.id, f)
-          }
+          const parsed = parseVideoDataUrl((part as { url: string }).url)
+          if (!parsed) return part
           touched = true
-          return { ...part, text: cleanPrompt }
+          return { type: 'text' as const, text: encodeVideoSentinel(parsed.data) }
         }
         return part
       })
       if (!touched) return message
-      return { ...message, parts } as UIMessage
+      return { ...message, parts: nextParts } as UIMessage
     })
-    return { messages: next, files: Array.from(byId.values()) }
   }
 
   /**
-   * Format collected file metadata as a system-prompt addendum. The block is
-   * stable / parseable so models can reference file_ids when invoking RAG tools.
+   * [ATTACHED_FILES] blocks stay on the user message that carries them (see
+   * fileMetadata.ts injectFilesIntoPrompt) so the model reads file_ids in the
+   * turn they belong to. Only a static, file-independent instruction is added
+   * to the system prompt - it never varies per attachment, so it doesn't
+   * defeat prompt caching.
    */
-  buildFilesSystemAddendum(files: FileMetadata[]): string {
-    if (files.length === 0) return ''
-    const lines = files.map((f) => {
-      const parts = [`file_id: ${f.id}`, `name: ${f.name}`]
-      if (f.type) parts.push(`type: ${f.type}`)
-      if (typeof f.size === 'number') parts.push(`size: ${f.size}`)
-      if (typeof f.chunkCount === 'number') parts.push(`chunks: ${f.chunkCount}`)
-      if (f.injectionMode) parts.push(`mode: ${f.injectionMode}`)
-      return `- ${parts.join(', ')}`
-    })
+  buildFilesSystemInstruction(messages: UIMessage[]): string {
+    const hasAttachedFiles = messages.some(
+      (message) =>
+        message.role === 'user' &&
+        Array.isArray(message.parts) &&
+        message.parts.some(
+          (part) =>
+            part?.type === 'text' &&
+            typeof (part as { text?: string }).text === 'string' &&
+            (part as { text: string }).text.includes('[ATTACHED_FILES]')
+        )
+    )
+    if (!hasAttachedFiles) return ''
     return [
-      'The user has attached the following files to this conversation.',
-      'Use the available retrieval tools with these file_ids when their contents are relevant.',
-      '[ATTACHED_FILES]',
-      ...lines,
-      '[/ATTACHED_FILES]',
-    ].join('\n')
+      'Some user messages contain an [ATTACHED_FILES] block listing files',
+      'attached to that turn (file_id, name, type, size, chunk count, mode).',
+      'Use the available retrieval tools with those file_ids when their',
+      'contents are relevant to the request.',
+    ].join(' ')
+  }
+
+  /**
+   * Static instruction teaching the model to use the native web tools and cite
+   * sources inline with [[cite:URL]] markers (rendered as favicon chips). Only
+   * added when web search is enabled so it doesn't affect prompt caching for
+   * users who keep it off.
+   */
+  buildWebSearchSystemInstruction(): string {
+    if (!useWebSearchConfig.getState().webSearchEnabled) return ''
+    return [
+      '# Web Access',
+      'You can search the web with web_search and read pages with web_fetch.',
+      'Use them whenever the request needs current, external, or verifiable',
+      'information, then base your answer on what you find. When a statement',
+      'relies on a web source, cite it inline immediately after that statement',
+      'using the exact marker [[cite:URL]], where URL is the full source URL',
+      'from a web_search result (for example: [[cite:https://example.com/page]]).',
+      'Cite each distinct source you rely on; do not add a separate references',
+      'or sources section.',
+    ].join(' ')
   }
 
   mapUserInlineAttachments(messages: UIMessage[]): UIMessage[] {

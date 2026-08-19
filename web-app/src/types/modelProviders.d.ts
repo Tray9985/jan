@@ -26,7 +26,6 @@ type ProviderSetting = {
 
 /**
  * 从 provider API /models 接口返回的模型信息
- * 用于自动填充 displayName、capabilities 和元数据
  */
 type ProviderModelInfo = {
   id: string
@@ -36,8 +35,18 @@ type ProviderModelInfo = {
   tool_call?: boolean
   attachment?: boolean
   temperature?: boolean
-  /** API 返回的原始模型对象，供后续扩展使用（limit、cost、family 等） */
+  /** API 返回的原始模型对象，供后续扩展使用 */
   raw?: Record<string, unknown>
+}
+
+/**
+ * A chat-template kwarg the model's embedded jinja template accepts,
+ * detected from the GGUF (e.g. `preserve_thinking`).
+ */
+type TemplateKwarg = {
+  name: string
+  type: 'boolean' | 'number' | 'string'
+  default: boolean | number | string
 }
 
 /**
@@ -52,6 +61,8 @@ type Model = {
   description?: string
   format?: string
   capabilities?: string[]
+  /** Chat-template kwargs the model's template accepts (llamacpp only). */
+  template_kwargs?: TemplateKwarg[]
   settings?: Record<string, ProviderSetting>
   /** Whether this model is an embedding model (e.g., BERT-based) */
   embedding?: boolean

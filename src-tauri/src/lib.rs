@@ -12,7 +12,10 @@ use core::{
 #[cfg(not(feature = "cli"))]
 use jan_utils::generate_app_token;
 #[cfg(not(feature = "cli"))]
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 #[cfg(not(feature = "cli"))]
 use tauri::{Emitter, Manager, RunEvent};
 #[cfg(not(feature = "cli"))]
@@ -48,15 +51,18 @@ macro_rules! invoke_commands_with_extras {
         core::app::commands::default_data_folder_path,
         core::app::commands::change_app_data_folder,
         core::app::commands::app_token,
-        // Extension commands
-        core::extensions::commands::get_jan_extensions_path,
-        core::extensions::commands::install_extensions,
-        core::extensions::commands::get_active_extensions,
+        // Backend-owned settings store (webview zustand persistence)
+        core::app::settings_store::settings_get,
+        core::app::settings_store::settings_set,
+        core::app::settings_store::settings_remove,
+        core::server::provider_secrets::set_secret,
+        core::server::provider_secrets::get_secret,
         // System commands
         core::system::commands::relaunch,
         core::system::commands::open_app_directory,
         core::system::commands::open_file_explorer,
         core::system::commands::factory_reset,
+        core::system::commands::take_pending_webdata_reset,
         core::system::commands::read_logs,
         core::system::commands::is_library_available,
         core::system::commands::launch_claude_code_with_config,
@@ -71,7 +77,10 @@ macro_rules! invoke_commands_with_extras {
         // Remote provider commands
         core::server::remote_provider_commands::register_provider_config,
         core::server::remote_provider_commands::unregister_provider_config,
+        core::server::remote_provider_commands::delete_provider_keys,
+        core::server::remote_provider_commands::set_model_param_defaults,
         core::server::remote_provider_commands::get_provider_config,
+        core::server::remote_provider_commands::get_provider_keys,
         core::server::remote_provider_commands::list_provider_configs,
         // MCP commands
         core::mcp::commands::get_tools,
@@ -107,6 +116,7 @@ macro_rules! invoke_commands_with_extras {
         // Theme
         core::setup::get_system_theme,
         core::setup::set_gtk_prefer_dark,
+        core::setup::get_titlebar_layout,
         $(
             $extra,
         )*
@@ -137,6 +147,14 @@ fn is_llamacpp_router_running<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> b
     use tauri::Manager;
     app.try_state::<std::sync::Arc<tauri_plugin_llamacpp::LlamacppState>>()
         .map(|s| s.router_pid.load(std::sync::atomic::Ordering::SeqCst) != 0)
+        .unwrap_or(false)
+}
+
+#[cfg(all(not(feature = "cli"), not(target_os = "macos")))]
+fn is_proxy_server_running<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
+    use tauri::Manager;
+    app.try_state::<AppState>()
+        .and_then(|s| s.server_handle.try_lock().ok().map(|g| g.is_some()))
         .unwrap_or(false)
 }
 
@@ -218,7 +236,8 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_llamacpp::init())
         .plugin(tauri_plugin_vector_db::init())
-        .plugin(tauri_plugin_rag::init());
+        .plugin(tauri_plugin_rag::init())
+        .plugin(tauri_plugin_websearch::init());
 
     #[cfg(feature = "deep-link")]
     {
@@ -261,10 +280,13 @@ pub fn run() {
             mcp_settings: Arc::new(Mutex::new(McpSettings::default())),
             mcp_shutdown_in_progress: Arc::new(Mutex::new(false)),
             mcp_monitoring_tasks: Arc::new(Mutex::new(HashMap::new())),
+            mcp_starting: Arc::new(Mutex::new(HashSet::new())),
             background_cleanup_handle: Arc::new(Mutex::new(None)),
             mcp_server_pids: Arc::new(Mutex::new(HashMap::new())),
             provider_configs: Arc::new(Mutex::new(HashMap::new())),
+            model_param_defaults: Arc::new(Mutex::new(HashMap::new())),
             mcp_reconnect_notify: Arc::new(tokio::sync::Notify::new()),
+            mcp_last_known_tools: Arc::new(Mutex::new(HashMap::new())),
         })
         .setup(|app| {
             app.handle().plugin(
@@ -296,12 +318,6 @@ pub fn run() {
                 .and_then(|v| v.as_str().map(String::from))
                 .unwrap_or_default();
             let app_version = app.config().version.clone().unwrap_or_default();
-            // Migrate extensions
-            if let Err(e) =
-                setup::install_extensions(app.handle().clone(), stored_version != app_version)
-            {
-                log::error!("Failed to install extensions: {e}");
-            }
 
             // Migrate MCP servers
             if let Err(e) = setup::migrate_mcp_servers(app.handle().clone(), store.clone()) {
@@ -340,8 +356,6 @@ pub fn run() {
             #[cfg(desktop)]
             setup::setup_jan_cli(app.handle().clone(), stored_version != app_version);
             setup::setup_theme_listener(app)?;
-            #[cfg(target_os = "linux")]
-            setup::shrink_gtk_headerbar(app);
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -355,22 +369,38 @@ pub fn run() {
             ..
         } = &event
         {
-            if label == "main"
-                && !SHUTTING_DOWN.load(Ordering::SeqCst)
-                && is_llamacpp_router_running(app)
-            {
-                api.prevent_close();
-                let _ = app.emit("llamacpp-close-attempt", ());
-                if GRACEFUL_IN_PROGRESS.swap(true, Ordering::SeqCst) {
-                    reemit_busy_if_any(app);
+            if label == "main" && !SHUTTING_DOWN.load(Ordering::SeqCst) {
+                // macOS: closing the window hides it; the app (and background
+                // services) keep running. Quit happens via Cmd+Q / dock / tray,
+                // which routes through RunEvent::ExitRequested.
+                #[cfg(target_os = "macos")]
+                {
+                    api.prevent_close();
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.hide();
+                    }
                     return;
                 }
-                let app_handle = app.clone();
-                tauri::async_runtime::spawn(async move {
-                    handle_graceful_exit(app_handle, "CloseRequested", 0).await;
-                    GRACEFUL_IN_PROGRESS.store(false, Ordering::SeqCst);
-                });
-                return;
+                // Windows/Linux: hide to tray only while the Local API Server is
+                // running; otherwise fall through to the normal quit-on-close.
+                // The llamacpp router is not a reason to keep the app resident
+                // (normal chat usage keeps it alive), so it gets torn down via
+                // the ExitRequested path on quit.
+                #[cfg(not(target_os = "macos"))]
+                if is_proxy_server_running(app) {
+                    api.prevent_close();
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.hide();
+                    }
+                    return;
+                }
+            }
+        }
+        #[cfg(target_os = "macos")]
+        if let RunEvent::Reopen { .. } = &event {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
             }
         }
         if let RunEvent::ExitRequested { api, code, .. } = &event {
@@ -393,6 +423,10 @@ pub fn run() {
         }
         if let RunEvent::Exit = event {
             let app_handle = app.clone();
+
+            // Drain any debounced settings writes before the process dies so
+            // jan-cli never reads a stale settings.json.
+            core::app::settings_store::flush_settings();
 
             #[cfg(not(any(target_os = "ios", target_os = "android")))]
             {

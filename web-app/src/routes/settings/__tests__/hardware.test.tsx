@@ -41,7 +41,10 @@ vi.mock('@/components/ui/progress', () => ({
 }))
 
 vi.mock('@/i18n/react-i18next-compat', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string) =>
+      key === 'settings:hardware.gpus' ? 'GPUs' : key,
+  }),
 }))
 
 vi.mock('@/hooks/useHardware', () => ({

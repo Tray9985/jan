@@ -107,7 +107,11 @@ const WebCitationItem = memo(({ c }: { c: WebCitation }) => {
     <li className="rounded-md border bg-card/40 px-3 py-2 text-xs">
       <div className="flex items-center gap-2">
         {c.favicon ? (
-          <img src={c.favicon} alt="" className="size-3.5 rounded-sm" />
+          <img
+            src={c.favicon}
+            alt=""
+            className="size-4 shrink-0 rounded-full border border-border/50 bg-white object-contain"
+          />
         ) : (
           <GlobeIcon className="size-3.5 shrink-0 text-muted-foreground" />
         )}
@@ -158,9 +162,13 @@ export const Citations = memo(
   ({
     payload,
     anchorPrefix,
+    indexOffset = 0,
   }: {
     payload: CitationsPayload
     anchorPrefix?: string
+    // Number/anchor cards from this base so a turn's multiple retrieve cards
+    // share one continuous numbering that matches the inline superscripts.
+    indexOffset?: number
   }) => {
   useEnsureAttachmentNames(
     payload.kind === 'rag' ? payload.scope : undefined,
@@ -173,19 +181,22 @@ export const Citations = memo(
 
   const items = useMemo(() => {
     if (payload.kind === 'rag') {
-      return payload.citations.map((c, i) => (
-        <RagCitationItem
-          key={c.id}
-          c={c}
-          index={i}
-          anchorId={anchorPrefix ? `${anchorPrefix}-${i + 1}` : undefined}
-        />
-      ))
+      return payload.citations.map((c, i) => {
+        const n = i + indexOffset
+        return (
+          <RagCitationItem
+            key={c.id}
+            c={c}
+            index={n}
+            anchorId={anchorPrefix ? `${anchorPrefix}-${n + 1}` : undefined}
+          />
+        )
+      })
     }
     return payload.citations.map((c, i) => (
       <WebCitationItem key={`${c.url}-${i}`} c={c} />
     ))
-  }, [payload, anchorPrefix])
+  }, [payload, anchorPrefix, indexOffset])
 
   if (!items.length) return null
 

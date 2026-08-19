@@ -80,7 +80,9 @@
     "newProject": "新建项目",
     "newProjectDesc": "打開创建项目對話框。",
     "search": "搜索",
-    "searchDesc": "搜索線程、模型和設置。"
+    "searchDesc": "搜索線程、模型和設置。",
+    "switchAssistant": "切換助理",
+    "switchAssistantDesc": "在聊天中切換到下一個助理。"
   },
   "interface": {
     "title": "外觀",
@@ -125,7 +127,13 @@
     "threadScrollFlowTitle": "自動滾動",
     "threadScrollFlowHint": "新消息到達時自動滾動到底部。",
     "threadScrollStickyTitle": "固定位置",
-    "threadScrollStickyHint": "點擊跳到底部，不自動跟随新消息。"
+    "threadScrollStickyHint": "點擊跳到底部，不自動跟随新消息。",
+    "coloredUserBubble": "為使用者訊息气泡着色",
+    "coloredUserBubbleDesc": "使用强調色作為您的訊息背景。關閉後，使用者訊息會與助理訊息一样，在中性背景上顯示普通文本。",
+    "renderHtmlArtifacts": "渲染 HTML 和 SVG 产物",
+    "renderHtmlArtifactsDesc": "為 HTML 和 SVG 代碼塊新增預覽標签。HTML 會在沙盒框架中執行模型生成的頁面，可执行頁面自身脚本，但不能存取 Jan、您的檔案或網路；SVG 以禁用脚本的静態方式渲染。預設關閉。",
+    "autoGenerateTitle": "自動生成聊天標題",
+    "autoGenerateTitleDesc": "自動將新對話总结為聊天標題。關閉後會保留預設標題，直到您手動重命名。"
   },
   "hardware": {
     "loadingHardwareInfo": "正在加載硬件信息…",
@@ -283,7 +291,9 @@
     "creditsDesc1": "Jan 由 Menlo 團队用 ❤️ 构建。",
     "creditsDesc2": "特别感謝我們的開源依赖项——尤其是 llama.cpp 和 Tauri——以及我們出色的 AI 社区。",
     "huggingfaceToken": "HuggingFace 令牌",
-    "huggingfaceTokenDesc": "您用于访問模型的 HuggingFace API 令牌。"
+    "huggingfaceTokenDesc": "您用于访問模型的 HuggingFace API 令牌。",
+    "clearWebData": "清除介面快取資料",
+    "clearWebDataDesc": "移除應用窗口保存的本地快取和介面偏好設定，介面將恢復預設状態。"
   },
   "extensions": {
     "title": "擴展"
@@ -388,5 +398,25 @@
   "verify": "驗證",
   "claudeCodeCleared": "Claude Code 設置已清除",
   "attemptingStartPort": "正在嘗試在埠 {{port}} 上啟動服務...",
-  "portOccupiedDesc": "埠 {{port}} 已被使用。請選擇其他埠。"
+  "portOccupiedDesc": "埠 {{port}} 已被使用。請選擇其他埠。",
+  "webSearch": {
+    "title": "網頁搜尋",
+    "description": "允许模型使用 Jan 的內置工具搜尋和讀取網頁。",
+    "enable": "啟用網頁搜尋",
+    "enableDesc": "向支援工具調用的模型提供 web_search 和 web_fetch 工具。無需 API Key 即可使用。",
+    "provider": "搜尋 Provider",
+    "providerDesc": "选擇回應 web_search 和 web_fetch 的後端。",
+    "apiKey": "{{provider}} API Key",
+    "apiKeyOptional": "可选。提供 {{provider}} API Key 可獲得更高限额和结构化結果；留空則使用免费的無 Key 端点。",
+    "apiKeyRequired": "必填。{{provider}} 需要 API Key 才能傳回結果。",
+    "apiKeyPlaceholder": "輸入 {{provider}} API Key",
+    "endpoint": "{{provider}} 實例 URL",
+    "endpointDesc": "必填。啟用了 JSON API 的 {{provider}} 實例基础 URL。",
+    "endpointPlaceholder": "https://searx.example.com"
+  },
+  "installBackendFromFile": "從檔案安装後端",
+  "installingBackend": "正在安装後端...",
+  "installCudaRuntime": "安装 CUDA 執行階段",
+  "installingCudaRuntime": "正在安装 CUDA 執行階段...",
+  "cudaRuntimeInstalled": "CUDA 執行階段已安装"
 }

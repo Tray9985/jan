@@ -22,6 +22,8 @@ import type {
   HuggingFaceRepo,
   CatalogModel,
   ModelValidationResult,
+  EmbeddingModelReport,
+  GpuOffloadReport,
 } from './types'
 import {
   extractToolContextFromContent,
@@ -232,7 +234,8 @@ export class DefaultModelsService implements ModelsService {
     modelSize?: number,
     mmprojPath?: string,
     mmprojSha256?: string,
-    mmprojSize?: number
+    mmprojSize?: number,
+    mtpPath?: string
   ): Promise<void> {
     return this.getEngine()?.import(id, {
       modelPath,
@@ -241,6 +244,7 @@ export class DefaultModelsService implements ModelsService {
       modelSize,
       mmprojSha256,
       mmprojSize,
+      mtpPath,
     })
   }
 
@@ -249,7 +253,8 @@ export class DefaultModelsService implements ModelsService {
     modelPath: string,
     mmprojPath?: string,
     hfToken?: string,
-    skipVerification: boolean = true
+    skipVerification: boolean = true,
+    mtpPath?: string
   ): Promise<void> {
     let modelSha256: string | undefined
     let modelSize: number | undefined
@@ -314,7 +319,8 @@ export class DefaultModelsService implements ModelsService {
         modelSize,
         mmprojPath,
         mmprojSha256,
-        mmprojSize
+        mmprojSize,
+        mtpPath
       )
     } catch (error) {
       // Emit download error event so the UI can clean up the stale downloading state
@@ -661,6 +667,65 @@ export class DefaultModelsService implements ModelsService {
     } catch (error) {
       console.error(`Error checking model support for ${modelPath}:`, error)
       return 'GREY' // Error state, assume not supported
+    }
+  }
+
+  async verifyEmbeddingModel(): Promise<EmbeddingModelReport> {
+    try {
+      const engine = this.getEngine('llamacpp') as AIEngine & {
+        verifyEmbeddingModel?: () => Promise<EmbeddingModelReport>
+      }
+      if (engine && typeof engine.verifyEmbeddingModel === 'function') {
+        return await engine.verifyEmbeddingModel()
+      }
+      return { status: 'warning', unavailable: true }
+    } catch (error) {
+      return {
+        status: 'warning',
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  }
+
+  /**
+   * Asks the local engine to begin its first-run provisioning (backend download,
+   * router start, embedding model). Deliberately fire-and-forget from the
+   * caller's point of view: progress is reported by the readiness checks, and a
+   * failure here must not stop the setup screen from advancing.
+   */
+  async startEngineSetup(): Promise<void> {
+    try {
+      const engine = this.getEngine('llamacpp') as AIEngine & {
+        startFirstRunSetup?: () => Promise<void>
+      }
+      if (engine && typeof engine.startFirstRunSetup === 'function') {
+        await engine.startFirstRunSetup()
+      }
+    } catch (error) {
+      console.warn('Failed to start engine setup:', error)
+    }
+  }
+
+  async verifyGpuOffload(): Promise<GpuOffloadReport> {
+    const unknown: GpuOffloadReport = {
+      status: 'warning',
+      backend: '',
+      gpuExpected: false,
+      engineDeviceCount: 0,
+    }
+    try {
+      const engine = this.getEngine('llamacpp') as AIEngine & {
+        verifyGpuOffload?: () => Promise<GpuOffloadReport>
+      }
+      if (engine && typeof engine.verifyGpuOffload === 'function') {
+        return await engine.verifyGpuOffload()
+      }
+      return { ...unknown, unavailable: true }
+    } catch (error) {
+      return {
+        ...unknown,
+        error: error instanceof Error ? error.message : String(error),
+      }
     }
   }
 

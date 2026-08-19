@@ -1,9 +1,8 @@
 import TextareaAutosize from 'react-textarea-autosize'
-import { invoke } from '@tauri-apps/api/core'
 import { cn, formatBytes } from '@/lib/utils'
 import { usePrompt } from '@/hooks/usePrompt'
 import { useThreads } from '@/hooks/useThreads'
-import { useCallback, useEffect, useRef, useState, memo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -15,11 +14,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
 import { ArrowRight, PlusIcon } from 'lucide-react'
 import {
   IconPhoto,
   IconMusic,
+  IconVideo,
   IconBrain,
   IconTool,
   IconCodeCircle2,
@@ -27,7 +31,8 @@ import {
   IconX,
   IconPaperclip,
   IconLoader2,
-  IconWorld,
+  IconWorldSearch,
+  IconBrandChrome,
 } from '@tabler/icons-react'
 import { generateId } from 'ai'
 import { useMessageQueue } from '@/stores/message-queue-store'
@@ -37,6 +42,15 @@ import { BotIcon } from 'lucide-react'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useGeneralSetting } from '@/hooks/useGeneralSetting'
 import { useModelProvider } from '@/hooks/useModelProvider'
+import { useTokensCount } from '@/hooks/useTokensCount'
+import {
+  THINKING_BUDGET_LEVELS,
+  DEFAULT_THINKING_BUDGET_LEVEL,
+  tokensForThinkingBudgetLevel,
+  isThinkingBudgetLevelKey,
+  type ThinkingBudgetLevelKey,
+} from '@/lib/thinkingBudget'
+import { useReconcileVideoCapability } from '@/hooks/useReconcileVideoCapability'
 
 import { useAppState } from '@/hooks/useAppState'
 import { MovingBorder } from './MovingBorder'
@@ -51,6 +65,7 @@ import {
 } from '@/constants/chat'
 import { defaultModel } from '@/lib/models'
 import { useAssistant } from '@/hooks/useAssistant'
+import { AssistantSwitcher } from '@/containers/AssistantSwitcher'
 import DropdownToolsAvailable from '@/containers/DropdownToolsAvailable'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { useTools } from '@/hooks/useTools'
@@ -68,6 +83,7 @@ import { ExtensionManager } from '@/lib/extension'
 import { useAttachments } from '@/hooks/useAttachments'
 import { toast } from 'sonner'
 import { isPlatformTauri } from '@/lib/platform/utils'
+import { shouldShowTokenCounter } from '@/lib/tokenCounterVisibility'
 import { useAttachmentIngestionPrompt } from '@/hooks/useAttachmentIngestionPrompt'
 import {
   NEW_THREAD_ATTACHMENT_KEY,
@@ -79,8 +95,12 @@ import {
   createImageAttachment,
   createDocumentAttachment,
   createAudioAttachment,
+  createVideoAttachment,
 } from '@/types/attachment'
+import JanBrowserExtensionDialog from '@/containers/dialogs/JanBrowserExtensionDialog'
+import { useJanBrowserExtension } from '@/hooks/useJanBrowserExtension'
 import { useAgentMode } from '@/hooks/useAgentMode'
+import { useWebSearchConfig } from '@/hooks/useWebSearchConfig'
 
 type ChatInputProps = {
   className?: string
@@ -88,6 +108,7 @@ type ChatInputProps = {
   model?: ThreadModel
   initialMessage?: boolean
   projectId?: string
+  projectAssistantId?: string
   onSubmit?: (
     text: string,
     files?: Array<{ type: string; mediaType: string; url: string }>
@@ -96,10 +117,29 @@ type ChatInputProps = {
   chatStatus?: ChatStatus
 }
 
+// Video containers llama-server can decode via ffmpeg/ffprobe into frames.
+const VIDEO_EXTS = ['mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v']
+const videoMimeForExt = (ext: string | undefined): string => {
+  switch (ext) {
+    case 'mov':
+      return 'video/quicktime'
+    case 'webm':
+      return 'video/webm'
+    case 'mkv':
+      return 'video/x-matroska'
+    case 'avi':
+      return 'video/x-msvideo'
+    default:
+      return 'video/mp4'
+  }
+}
+
+
 const ChatInput = memo(function ChatInput({
   className,
   initialMessage,
   projectId,
+  projectAssistantId,
   onSubmit,
   onStop,
   chatStatus,
@@ -146,6 +186,8 @@ const ChatInput = memo(function ChatInput({
   // When projectId is present, treat as normal chat (disable agent mode UI)
   const effectiveAgentMode = isAgentMode && !projectId
   const toggleAgentMode = useAgentMode((state) => state.toggleAgentMode)
+  const webSearchEnabled = useWebSearchConfig((s) => s.webSearchEnabled)
+  const setWebSearchEnabled = useWebSearchConfig((s) => s.setWebSearchEnabled)
 
   const handleAgentToggle = useCallback(() => {
     toggleAgentMode(agentModeKey)
@@ -167,6 +209,8 @@ const ChatInput = memo(function ChatInput({
     (state) => state.selectModelProvider
   )
   const updateProvider = useModelProvider((state) => state.updateProvider)
+  const { maxTokens: liveMaxTokens, configuredCtxLen } =
+    useTokensCount(threadMessages || [])
   const [message, setMessage] = useState('')
   const [dropdownToolsAvailable, setDropdownToolsAvailable] = useState(false)
   const [tooltipShown, setTooltipShown] = useState<
@@ -177,14 +221,53 @@ const ChatInput = memo(function ChatInput({
   const activeModels = useAppState(useShallow((state) => state.activeModels))
   // Check if selected model is currently loaded/active
   const isModelActive = selectedModel?.id ? activeModels.includes(selectedModel.id) : false
+
+  // Reconcile video capability from /props once the model is loaded.
+  useReconcileVideoCapability(selectedModel?.id, selectedProvider, isModelActive)
+
+  const tokenCounterVisible = shouldShowTokenCounter({
+    hasSelectedModel: !!selectedModel,
+    isAgentMode: effectiveAgentMode,
+    isInitialMessage: !!initialMessage,
+    hasMessages: (threadMessages?.length ?? 0) > 0,
+    hasPromptText: prompt.trim().length > 0,
+  })
   const [selectedAssistantId, setSelectedAssistantId] = useState<
     string | undefined
-  >(loading ? undefined : currentAssistant?.id || '')
+  >(loading ? undefined : projectAssistantId || currentAssistant?.id || '')
 
   useEffect(() => {
-    setSelectedAssistantId(currentAssistant?.id || '')
+    setSelectedAssistantId(projectAssistantId || currentAssistant?.id || '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading])
+  }, [loading, projectAssistantId])
+
+  // Jan Browser Extension hook
+  const {
+    hasConfig: hasJanBrowserMCPConfig,
+    isActive: janBrowserMCPActive,
+    isLoading: isJanBrowserMCPLoading,
+    dialogOpen: extensionDialogOpen,
+    dialogState: extensionDialogState,
+    toggleBrowser: handleBrowseClick,
+    disableDueToIncompatibleModel,
+    handleCancel: handleExtensionDialogCancel,
+    setDialogOpen: setExtensionDialogOpen,
+  } = useJanBrowserExtension()
+
+  // Check if model supports browser feature (requires both vision and tools)
+  const modelSupportsBrowser = useMemo(() => {
+    const capabilities = selectedModel?.capabilities || []
+    return capabilities.includes('vision') && capabilities.includes('tools')
+  }, [selectedModel?.capabilities])
+
+  // Auto-disable browser feature when model doesn't support it
+  useEffect(() => {
+    if (janBrowserMCPActive && !modelSupportsBrowser) {
+      disableDueToIncompatibleModel()
+    }
+    // disableDueToIncompatibleModel omitted: its !isActive guard makes stale closures safe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [janBrowserMCPActive, modelSupportsBrowser])
 
   const attachmentsEnabled = useAttachments((s) => s.enabled)
   const parsePreference = useAttachments((s) => s.parseMode)
@@ -214,7 +297,9 @@ const ChatInput = memo(function ChatInput({
   )
   const ingestingAny = attachments.some((a) => a.processing)
   const hasSendableMedia = attachments.some(
-    (a) => (a.type === 'image' || a.type === 'audio') && !!a.dataUrl
+    (a) =>
+      (a.type === 'image' || a.type === 'audio' || a.type === 'video') &&
+      !!a.dataUrl
   )
 
   const [, setFileIngestProgress] = useState<{
@@ -320,37 +405,32 @@ const ChatInput = memo(function ChatInput({
           mediaType: att.audioFormat === 'mp3' ? 'audio/mpeg' : 'audio/wav',
           url: att.dataUrl!,
         }))
-      const files = [...imageFiles, ...audioFiles]
+      const videoFiles = attachments
+        .filter((att) => att.type === 'video' && att.dataUrl)
+        .map((att) => ({
+          type: 'file',
+          mediaType: att.mimeType ?? 'video/mp4',
+          url: att.dataUrl!,
+        }))
+      const files = [...imageFiles, ...audioFiles, ...videoFiles]
 
       onSubmit(prompt, files.length > 0 ? files : undefined)
       setPrompt('')
       clearAttachmentsForThread(attachmentsKey)
     } else {
-      // No onSubmit provided - create a new thread and navigate to it
-      // Store the initial message in sessionStorage for the thread page to read
+      // No onSubmit provided - create a new thread and navigate to it.
+      // Media attachments (image/audio/video) are NOT serialized into
+      // sessionStorage — their base64 data URLs blow past the ~5MB quota
+      // (esp. video). They live in the in-memory attachments store and are
+      // transferred to the new thread's key on the detail page (see the
+      // transferAttachments effect); processAndSendMessage reads them there.
       const isTemporaryChat = window.location.search.includes(
         `${TEMPORARY_CHAT_QUERY_ID}=true`
       )
 
-      const imageFiles = attachments
-        .filter((att) => att.type === 'image' && att.dataUrl)
-        .map((att) => ({
-          type: 'file',
-          mediaType: att.mimeType ?? 'image/jpeg',
-          url: att.dataUrl!,
-        }))
-      const audioFiles = attachments
-        .filter((att) => att.type === 'audio' && att.dataUrl)
-        .map((att) => ({
-          type: 'file',
-          mediaType: att.audioFormat === 'mp3' ? 'audio/mpeg' : 'audio/wav',
-          url: att.dataUrl!,
-        }))
-      const files = [...imageFiles, ...audioFiles]
-
       const messagePayload = {
         text: prompt,
-        files: files.length > 0 ? files : [],
+        files: [] as Array<{ type: string; mediaType: string; url: string }>,
       }
 
       if (isTemporaryChat) {
@@ -500,23 +580,15 @@ const ChatInput = memo(function ChatInput({
         abortControllers[threadId]?.abort()
       }
       cancelToolCall?.()
-      // Escalate: if the llama.cpp model is still processing after the HTTP
-      // abort, force-unload it so generation actually stops. KV cache is lost.
-      const modelId = selectedModel?.id
-      if (selectedProvider === 'llamacpp' && modelId) {
-        setTimeout(() => {
-          invoke('plugin:llamacpp|force_stop_model', { modelId }).catch((e) => {
-            console.warn('force_stop_model failed:', e)
-          })
-        }, 500)
-      }
     },
-    [abortControllers, cancelToolCall, onStop, selectedModel?.id, selectedProvider]
+    [abortControllers, cancelToolCall, onStop]
   )
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const audioInputRef = useRef<HTMLInputElement>(null)
   const audioSupported = !!selectedModel?.capabilities?.includes('audio')
+  const videoInputRef = useRef<HTMLInputElement>(null)
+  const videoSupported = !!selectedModel?.capabilities?.includes('video')
 
   const processNewDocumentAttachments = useCallback(
     async (docs: Attachment[]) => {
@@ -1071,7 +1143,14 @@ const ChatInput = memo(function ChatInput({
     } else {
       setMessage('')
     }
-  }, [attachmentsKey, currentThreadId, setAttachmentsForThread, serviceHub, setFileIngestProgress])
+  }, [
+    attachmentsKey,
+    currentThreadId,
+    setAttachmentsForThread,
+    serviceHub,
+    setFileIngestProgress,
+    t,
+  ])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -1191,7 +1270,7 @@ const ChatInput = memo(function ChatInput({
         if (audioInputRef.current) audioInputRef.current.value = ''
       }
     },
-    [attachmentsKey, setAttachmentsForThread]
+    [attachmentsKey, setAttachmentsForThread, t]
   )
 
   const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1240,7 +1319,140 @@ const ChatInput = memo(function ChatInput({
     } else {
       audioInputRef.current?.click()
     }
-  }, [serviceHub, processAudioFiles])
+  }, [serviceHub, processAudioFiles, t])
+
+  const processVideoFiles = useCallback(
+    async (files: File[]) => {
+      const maxBytes = 100 * 1024 * 1024
+      const oversized: string[] = []
+      const invalid: string[] = []
+      const prepared: Attachment[] = []
+
+      for (const file of Array.from(files)) {
+        const ext = file.name.toLowerCase().split('.').pop()
+        const isVideo =
+          file.type.startsWith('video/') || VIDEO_EXTS.includes(ext ?? '')
+        if (!isVideo) {
+          invalid.push(file.name)
+          continue
+        }
+        if (file.size > maxBytes) {
+          oversized.push(file.name)
+          continue
+        }
+        const mimeType = file.type.startsWith('video/')
+          ? file.type
+          : videoMimeForExt(ext)
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            const r = reader.result
+            if (typeof r === 'string') resolve(r)
+            else reject(new Error('read failed'))
+          }
+          reader.onerror = () => reject(reader.error ?? new Error('read failed'))
+          reader.readAsDataURL(file)
+        })
+        const base64 = dataUrl.split(',')[1] ?? ''
+        prepared.push(
+          createVideoAttachment({
+            name: file.name,
+            base64,
+            dataUrl,
+            mimeType,
+            size: file.size,
+          })
+        )
+      }
+
+      const current = useChatAttachments.getState().getAttachments(attachmentsKey)
+      const existingNames = new Set(
+        current.filter((a) => a.type === 'video').map((a) => a.name)
+      )
+      const duplicates: string[] = []
+      const newOnes: Attachment[] = []
+      for (const att of prepared) {
+        if (existingNames.has(att.name)) {
+          duplicates.push(att.name)
+          continue
+        }
+        newOnes.push(att)
+      }
+
+      if (newOnes.length > 0) {
+        setAttachmentsForThread(attachmentsKey, (prev) => [...prev, ...newOnes])
+      }
+
+      if (duplicates.length > 0) {
+        toast.warning('Some video files already attached', {
+          description: `${duplicates.join(', ')} ${duplicates.length === 1 ? 'is' : 'are'} already in the list`,
+        })
+      }
+      const errors: string[] = []
+      if (oversized.length > 0) {
+        errors.push(
+          `Video file${oversized.length > 1 ? 's' : ''} too large (max 100MB): ${oversized.join(', ')}`
+        )
+      }
+      if (invalid.length > 0) {
+        errors.push(
+          `Invalid video type${invalid.length > 1 ? 's' : ''}: ${invalid.join(', ')}`
+        )
+      }
+      if (errors.length > 0) {
+        setMessage(errors.join(' | '))
+        if (videoInputRef.current) videoInputRef.current.value = ''
+      }
+    },
+    [attachmentsKey, setAttachmentsForThread]
+  )
+
+  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files && files.length > 0) {
+      void processVideoFiles(Array.from(files))
+      if (videoInputRef.current) videoInputRef.current.value = ''
+    }
+    if (textareaRef.current) textareaRef.current.focus()
+  }
+
+  const openVideoPicker = useCallback(async () => {
+    if (isPlatformTauri()) {
+      try {
+        const selected = await serviceHub.dialog().open({
+          multiple: true,
+          filters: [{ name: 'Video', extensions: VIDEO_EXTS }],
+        })
+        if (selected) {
+          const paths = Array.isArray(selected) ? selected : [selected]
+          const files: File[] = []
+          for (const path of paths) {
+            try {
+              const { convertFileSrc } = await import('@tauri-apps/api/core')
+              const fileUrl = convertFileSrc(path)
+              const response = await fetch(fileUrl)
+              if (!response.ok) throw new Error(response.statusText)
+              const blob = await response.blob()
+              const fileName = path.split(/[\\/]/).filter(Boolean).pop() || 'video'
+              const ext = fileName.toLowerCase().split('.').pop()
+              files.push(new File([blob], fileName, { type: videoMimeForExt(ext) }))
+            } catch (error) {
+              console.error('Failed to read video file:', error)
+              toast.error('Failed to read video file', {
+                description: error instanceof Error ? error.message : String(error),
+              })
+            }
+          }
+          if (files.length > 0) await processVideoFiles(files)
+        }
+      } catch (error) {
+        console.error('Failed to open video dialog:', error)
+      }
+      if (textareaRef.current) textareaRef.current.focus()
+    } else {
+      videoInputRef.current?.click()
+    }
+  }, [serviceHub, processVideoFiles])
 
   // Open the image picker dialog (extracted for reuse)
   const openImagePicker = useCallback(async () => {
@@ -1309,9 +1521,9 @@ const ChatInput = memo(function ChatInput({
       // Fallback to input click for web
       fileInputRef.current?.click()
     }
-  }, [serviceHub, processImageFiles])
+  }, [serviceHub, processImageFiles, t])
 
-  const dropAcceptsAnything = hasMmproj || audioSupported
+  const dropAcceptsAnything = hasMmproj || audioSupported || videoSupported
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault()
@@ -1366,8 +1578,16 @@ const ChatInput = memo(function ChatInput({
       )
     }
 
+    const isVideoFile = (f: File) => {
+      const ext = f.name.toLowerCase().split('.').pop()
+      return f.type.startsWith('video/') || VIDEO_EXTS.includes(ext ?? '')
+    }
+
     const audioOnes = audioSupported ? dropped.filter(isAudioFile) : []
-    const otherOnes = dropped.filter((f) => !audioOnes.includes(f))
+    const videoOnes = videoSupported ? dropped.filter(isVideoFile) : []
+    const otherOnes = dropped.filter(
+      (f) => !audioOnes.includes(f) && !videoOnes.includes(f)
+    )
 
     if (otherOnes.length > 0 && hasMmproj) {
       const dt = new DataTransfer()
@@ -1379,6 +1599,9 @@ const ChatInput = memo(function ChatInput({
     }
     if (audioOnes.length > 0) {
       void processAudioFiles(audioOnes)
+    }
+    if (videoOnes.length > 0) {
+      void processVideoFiles(videoOnes)
     }
   }
 
@@ -1551,6 +1774,7 @@ const ChatInput = memo(function ChatInput({
                     .map(({ att, idx }) => {
                       const isImage = att.type === 'image'
                       const isAudio = att.type === 'audio'
+                      const isVideo = att.type === 'video'
                       const ext = att.fileType || att.mimeType?.split('/')[1]
                       const durLabel =
                         isAudio && typeof att.durationSec === 'number'
@@ -1585,6 +1809,10 @@ const ChatInput = memo(function ChatInput({
                                         {durLabel}
                                       </span>
                                     )}
+                                  </div>
+                                ) : isVideo ? (
+                                  <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                    <IconVideo size={20} />
                                   </div>
                                 ) : (
                                   <div className="flex flex-col items-center justify-center text-muted-foreground">
@@ -1779,6 +2007,20 @@ const ChatInput = memo(function ChatInput({
                         />
                       </DropdownMenuItem>
                     )}
+                    {videoSupported && (
+                      <DropdownMenuItem onClick={() => void openVideoPicker()}>
+                        <IconVideo size={18} className="text-muted-foreground" />
+                        <span>Add Video</span>
+                        <input
+                          type="file"
+                          ref={videoInputRef}
+                          className="hidden"
+                          multiple
+                          accept="video/mp4,video/quicktime,video/webm,video/x-matroska,video/x-msvideo,.mp4,.mov,.webm,.mkv,.avi,.m4v"
+                          onChange={handleVideoFileChange}
+                        />
+                      </DropdownMenuItem>
+                    )}
                     {/* RAG document attachments - desktop-only via dialog; shown when feature enabled */}
                     <DropdownMenuItem
                       onClick={handleAttachDocsIngest}
@@ -1812,21 +2054,66 @@ const ChatInput = memo(function ChatInput({
                     useLastUsedModel={initialMessage}
                   />
                 )} */}
+                <AssistantSwitcher
+                  assistants={assistants}
+                  currentThread={currentThread}
+                  selectedAssistantId={selectedAssistantId}
+                  setSelectedAssistantId={setSelectedAssistantId}
+                  updateCurrentThreadAssistant={updateCurrentThreadAssistant}
+                />
                 <SamplerPopover
                   providerId={selectedProvider}
                   modelId={selectedModel?.id}
-                  assistantSwitcher={
-                    !projectId
-                      ? {
-                          assistants,
-                          currentThread,
-                          selectedAssistantId,
-                          setSelectedAssistantId,
-                          updateCurrentThreadAssistant,
-                        }
-                      : undefined
-                  }
+                  assistantSwitcher={{
+                    assistants,
+                    currentThread,
+                    selectedAssistantId,
+                    setSelectedAssistantId,
+                    updateCurrentThreadAssistant,
+                  }}
                 />
+                {!effectiveAgentMode && hasJanBrowserMCPConfig && modelSupportsBrowser && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        disabled={isJanBrowserMCPLoading}
+                        className={cn(janBrowserMCPActive && 'text-primary')}
+                        onClick={
+                          isJanBrowserMCPLoading
+                            ? undefined
+                            : handleBrowseClick
+                        }
+                      >
+                        {isJanBrowserMCPLoading ? (
+                          <IconLoader2
+                            size={18}
+                            className="text-primary animate-spin"
+                          />
+                        ) : (
+                          <IconBrandChrome
+                            size={18}
+                            className={cn(
+                              'text-muted-foreground',
+                              janBrowserMCPActive && 'text-primary'
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {isJanBrowserMCPLoading
+                          ? t('common:starting')
+                          : janBrowserMCPActive
+                            ? t('common:browseActive')
+                            : t('common:browse')}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+
                 {!effectiveAgentMode && selectedModel?.capabilities?.includes('embeddings') && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1856,7 +2143,6 @@ const ChatInput = memo(function ChatInput({
                       selectedModelHasTools={
                         selectedModel?.capabilities?.includes('tools') ?? false
                       }
-                      initialMessage={initialMessage}
                       MCPToolComponent={MCPToolComponent}
                     />
                   ) : (
@@ -1878,7 +2164,6 @@ const ChatInput = memo(function ChatInput({
                           }}
                         >
                           <DropdownToolsAvailable
-                            initialMessage={initialMessage}
                             onOpenChange={(isOpen) => {
                               setDropdownToolsAvailable(isOpen)
                               if (isOpen) {
@@ -1942,29 +2227,54 @@ const ChatInput = memo(function ChatInput({
                   </Tooltip>
                 )}
 
-                {!effectiveAgentMode && selectedModel?.capabilities?.includes('web_search') && (
+                {!effectiveAgentMode && selectedModel?.capabilities?.includes('tools') && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon-xs">
-                        <IconWorld
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className={cn(webSearchEnabled && 'text-primary')}
+                        onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                      >
+                        <IconWorldSearch
                           size={18}
-                          className="text-muted-foreground"
+                          className={cn(
+                            'text-muted-foreground',
+                            webSearchEnabled && 'text-primary'
+                          )}
                         />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Web Search</p>
+                      <p>
+                        {webSearchEnabled
+                          ? t('common:web_search') + ' (Active)'
+                          : t('common:web_search')}
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 )}
 
                 {!effectiveAgentMode &&
-                  selectedProvider === 'llamacpp' &&
+                  (selectedProvider === 'llamacpp' ||
+                    selectedProvider === 'google' ||
+                    selectedProvider === 'gemini' ||
+                    selectedProvider === 'anthropic' ||
+                    selectedProvider === 'openai') &&
                   (() => {
+                    // The token-budget submenu only applies to local llama.cpp
+                    // (budget resolved against live n_ctx). Cloud providers size
+                    // their own budget dynamically, so on/off/auto is enough.
+                    const showThinkingBudget = selectedProvider === 'llamacpp'
                     const reasoningValue =
                       (selectedModel?.settings?.reasoning?.controller_props
                         ?.value as 'auto' | 'on' | 'off' | undefined) ?? 'auto'
-                    const setReasoning = (value: 'auto' | 'on' | 'off') => {
+                    const updateModelSetting = (
+                      settingKey: string,
+                      title: string,
+                      controllerType: string,
+                      value: unknown
+                    ) => {
                       if (!selectedProvider || !selectedModel) return
                       const providerObj = getProviderByName(selectedProvider)
                       if (!providerObj) return
@@ -1972,19 +2282,18 @@ const ChatInput = memo(function ChatInput({
                         (m) => m.id === selectedModel.id
                       )
                       if (modelIndex === -1) return
-                      const existing =
-                        selectedModel.settings?.reasoning ?? {
-                          key: 'reasoning',
-                          title: 'Reasoning',
-                          description: '',
-                          controller_type: 'dropdown',
-                          controller_props: { value },
-                        }
+                      const existing = selectedModel.settings?.[settingKey] ?? {
+                        key: settingKey,
+                        title,
+                        description: '',
+                        controller_type: controllerType,
+                        controller_props: { value },
+                      }
                       const updatedModel = {
                         ...selectedModel,
                         settings: {
                           ...selectedModel.settings,
-                          reasoning: {
+                          [settingKey]: {
                             ...existing,
                             controller_props: {
                               ...(existing.controller_props ?? {}),
@@ -2003,6 +2312,121 @@ const ChatInput = memo(function ChatInput({
                       // chat transport both observe the new value.
                       selectModelProvider(selectedProvider, selectedModel.id)
                     }
+                    const clearModelSetting = (settingKey: string) => {
+                      if (!selectedProvider || !selectedModel) return
+                      const providerObj = getProviderByName(selectedProvider)
+                      if (!providerObj) return
+                      const modelIndex = providerObj.models.findIndex(
+                        (m) => m.id === selectedModel.id
+                      )
+                      if (modelIndex === -1) return
+                      const nextSettings = { ...(selectedModel.settings ?? {}) }
+                      delete nextSettings[settingKey]
+                      const updatedModels = [...providerObj.models]
+                      updatedModels[modelIndex] = {
+                        ...selectedModel,
+                        settings: nextSettings,
+                      } as Model
+                      updateProvider(selectedProvider, { models: updatedModels })
+                      selectModelProvider(selectedProvider, selectedModel.id)
+                    }
+
+                    // OpenAI reasoning models expose a discrete effort (no
+                    // on/off, no token budget). Reuse the thinking_budget_tokens
+                    // level as the effort value; "Default" clears it so the
+                    // model uses its own default effort.
+                    if (selectedProvider === 'openai') {
+                      const rawEffort =
+                        selectedModel?.settings?.thinking_budget_tokens
+                          ?.controller_props?.value
+                      const currentEffort =
+                        isThinkingBudgetLevelKey(rawEffort) &&
+                        rawEffort !== 'unlimited'
+                          ? rawEffort
+                          : undefined
+                      const EFFORTS: ThinkingBudgetLevelKey[] = [
+                        'low',
+                        'medium',
+                        'high',
+                        'xhigh',
+                      ]
+                      const effortLabel = currentEffort
+                        ? THINKING_BUDGET_LEVELS.find(
+                            (l) => l.key === currentEffort
+                          )!.label
+                        : 'Default'
+                      return (
+                        <DropdownMenu>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  aria-label={`Reasoning effort: ${effortLabel}`}
+                                >
+                                  <IconBrain
+                                    size={18}
+                                    className={cn(
+                                      'text-muted-foreground',
+                                      currentEffort && 'text-primary'
+                                    )}
+                                  />
+                                </Button>
+                              </DropdownMenuTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Reasoning effort: {effortLabel}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                clearModelSetting('thinking_budget_tokens')
+                              }
+                            >
+                              Default
+                              {!currentEffort && (
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                  ✓
+                                </span>
+                              )}
+                            </DropdownMenuItem>
+                            {EFFORTS.map((key) => (
+                              <DropdownMenuItem
+                                key={key}
+                                onClick={() =>
+                                  updateModelSetting(
+                                    'thinking_budget_tokens',
+                                    'Reasoning Effort',
+                                    'dropdown',
+                                    key
+                                  )
+                                }
+                              >
+                                {
+                                  THINKING_BUDGET_LEVELS.find(
+                                    (l) => l.key === key
+                                  )!.label
+                                }
+                                {currentEffort === key && (
+                                  <span className="ml-auto text-xs text-muted-foreground">
+                                    ✓
+                                  </span>
+                                )}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )
+                    }
+                    const setReasoning = (value: 'auto' | 'on' | 'off') =>
+                      updateModelSetting(
+                        'reasoning',
+                        'Reasoning',
+                        'dropdown',
+                        value
+                      )
                     const label =
                       reasoningValue === 'on'
                         ? 'On'
@@ -2014,7 +2438,36 @@ const ChatInput = memo(function ChatInput({
                         ? 'Reasoning forced on for every request.'
                         : reasoningValue === 'off'
                           ? 'Reasoning disabled for every request.'
-                          : "Reasoning auto-detected from the model's chat template."
+                          : "Reasoning uses the model's default."
+
+                    // Stored as a symbolic level, not an absolute token count:
+                    // the live context size (post auto-fit) is only known once
+                    // the model is actually loaded, so resolving to tokens
+                    // happens at send time (custom-chat-transport.ts) against
+                    // whatever the context size turns out to be then.
+                    const rawBudgetLevel =
+                      selectedModel?.settings?.thinking_budget_tokens
+                        ?.controller_props?.value
+                    const currentBudgetLevel = isThinkingBudgetLevelKey(
+                      rawBudgetLevel
+                    )
+                      ? rawBudgetLevel
+                      : DEFAULT_THINKING_BUDGET_LEVEL
+                    const setThinkingBudget = (level: ThinkingBudgetLevelKey) =>
+                      updateModelSetting(
+                        'thinking_budget_tokens',
+                        'Thinking Budget',
+                        'dropdown',
+                        level
+                      )
+                    const currentBudgetLabel = THINKING_BUDGET_LEVELS.find(
+                      (l) => l.key === currentBudgetLevel
+                    )!.label
+                    // Best-effort preview only; the request-time value may
+                    // differ once the model is loaded and fit settles n_ctx.
+                    const approxContextSize =
+                      liveMaxTokens || configuredCtxLen || 8192
+
                     return (
                       <DropdownMenu>
                         <Tooltip>
@@ -2065,6 +2518,53 @@ const ChatInput = memo(function ChatInput({
                               </span>
                             )}
                           </DropdownMenuItem>
+                          {showThinkingBudget && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                  <span className="flex-1">Thinking Budget</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {currentBudgetLabel}
+                                  </span>
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent
+                                  collisionPadding={{ bottom: 16 }}
+                                >
+                                  {THINKING_BUDGET_LEVELS.map((level) => {
+                                    const approxTokens =
+                                      tokensForThinkingBudgetLevel(
+                                        level.key,
+                                        approxContextSize
+                                      )
+                                    return (
+                                      <DropdownMenuItem
+                                        key={level.key}
+                                        onClick={() =>
+                                          setThinkingBudget(level.key)
+                                        }
+                                        className="gap-2"
+                                      >
+                                        <span className="flex-1">
+                                          {level.label}
+                                        </span>
+                                        <span className="w-14 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                                          {approxTokens === -1
+                                            ? ''
+                                            : `~${approxTokens}`}
+                                        </span>
+                                        <span className="w-3 shrink-0 text-xs text-muted-foreground">
+                                          {currentBudgetLevel === level.key
+                                            ? '✓'
+                                            : ''}
+                                        </span>
+                                      </DropdownMenuItem>
+                                    )
+                                  })}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )
@@ -2073,17 +2573,11 @@ const ChatInput = memo(function ChatInput({
             </div>
 
             <div className="flex items-center gap-2">
-              {tokenCounterCompact &&
-                !effectiveAgentMode &&
-                !initialMessage &&
-                (threadMessages?.length > 0 || prompt.trim().length > 0) && (
-                  <div className="flex-1 flex justify-center">
-                    <TokenCounter
-                      messages={threadMessages || []}
-                      compact={true}
-                    />
-                  </div>
-                )}
+              {tokenCounterVisible && tokenCounterCompact && (
+                <div className="flex-1 flex justify-center">
+                  <TokenCounter messages={threadMessages || []} compact={true} />
+                </div>
+              )}
 
               {isStreaming ? (
                 <Tooltip>
@@ -2144,15 +2638,18 @@ const ChatInput = memo(function ChatInput({
         </div>
       )}
 
-      {(selectedProvider !== 'llamacpp' || isModelActive) &&
-        !effectiveAgentMode &&
-        !tokenCounterCompact &&
-        !initialMessage &&
-        (threadMessages?.length > 0 || prompt.trim().length > 0) && (
-          <div className="flex-1 w-full flex justify-start px-2">
-            <TokenCounter messages={threadMessages || []} />
-          </div>
-        )}
+      {tokenCounterVisible && !tokenCounterCompact && (
+        <div className="flex-1 w-full flex justify-start px-2">
+          <TokenCounter messages={threadMessages || []} />
+        </div>
+      )}
+
+      <JanBrowserExtensionDialog
+        open={extensionDialogOpen}
+        onOpenChange={setExtensionDialogOpen}
+        state={extensionDialogState}
+        onCancel={handleExtensionDialogCancel}
+      />
     </div>
   )
 })

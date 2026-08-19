@@ -7,6 +7,17 @@ vi.mock('@/hooks/useTokensCount', () => ({
   useTokensCount: vi.fn(),
 }))
 
+vi.mock('@/i18n/react-i18next-compat', () => ({
+  useTranslation: () => ({
+    t: (key: string) =>
+      ({
+        'common:contextWindow': 'Context window',
+        'common:used': 'Used',
+        'common:remaining': 'Remaining',
+      })[key] ?? key,
+  }),
+}))
+
 // Mock tooltip components to render inline (Radix Portal + closed state prevents content from appearing in jsdom)
 vi.mock('@/components/ui/tooltip', async () => {
   const React = await import('react')
@@ -110,6 +121,21 @@ describe('TokenCounter', () => {
     expect(container.firstChild).toBeNull()
   })
 
+  it('renders a count-only badge (no percentage) when maxTokens is unavailable but tokens exist', () => {
+    mockTokens({
+      tokenCount: 1400,
+      maxTokens: undefined,
+      inputTokens: 1000,
+      outputTokens: 400,
+      modelDisplayName: 'GPT X',
+    })
+    render(<TokenCounter />)
+    expect(screen.queryByText(/%/)).toBeNull()
+    expect(screen.getAllByText('1.4K').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('GPT X')).toBeTruthy()
+    expect(screen.getByText('1,400')).toBeTruthy()
+  })
+
   describe('formatNumber helper (via rendered output)', () => {
     it('formats thousands as K', () => {
       mockTokens({ tokenCount: 1000, maxTokens: 2000 })
@@ -159,6 +185,22 @@ describe('TokenCounter', () => {
     const tooltipContent = screen.getByTestId('tooltip-content')
     expect(tooltipContent.textContent).toContain('Remaining')
     expect(tooltipContent.textContent).toMatch(/Remaining\s*0/)
+  })
+
+  it('shows the overflow note and failing-request numbers when isOverflow', () => {
+    mockTokens({ tokenCount: 1200, maxTokens: 1000, isOverflow: true })
+    const { container } = render(<TokenCounter />)
+    const tooltipContent = screen.getByTestId('tooltip-content')
+    expect(tooltipContent.textContent).toMatch(/overflow/i)
+    expect(screen.getAllByText('120.0%').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('does not show the overflow note when not overflowing', () => {
+    mockTokens({ tokenCount: 500, maxTokens: 1000, isOverflow: false })
+    render(<TokenCounter />)
+    expect(screen.getByTestId('tooltip-content').textContent).not.toMatch(
+      /overflow/i
+    )
   })
 
   it('accepts className prop', () => {

@@ -5,6 +5,10 @@ import DropdownModelProvider from '../DropdownModelProvider'
 import { getModelDisplayName } from '@/lib/utils'
 import { useModelProvider } from '@/hooks/useModelProvider'
 
+vi.mock('@/containers/ModelBrandIcon', () => ({
+  ModelBrandIcon: () => <span data-testid="model-brand-icon" />,
+}))
+
 // Define basic types to avoid missing declarations
 type ModelProvider = {
   provider: string

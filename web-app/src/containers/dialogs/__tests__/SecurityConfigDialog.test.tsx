@@ -4,6 +4,23 @@ import '@testing-library/jest-dom'
 
 const hoisted = vi.hoisted(() => ({
   invoke: vi.fn(),
+  translate: (key: string) =>
+    ({
+      'common:close': 'Close',
+      'security:securitySettings': 'Security Settings',
+      'security:currentStatus': 'Current Status',
+      'security:failedToLoadSettings': 'Failed to load security settings',
+      'security:devices': 'Devices',
+      'security:logs': 'Logs',
+      'security:noAccessLogs': 'No access logs',
+      'security:generateNewToken': 'Generate New Token',
+      'security:tokenGenerated': 'New access token generated',
+      'security:setPassword': 'Set Password',
+      'security:enterPassword': 'Enter password',
+      'security:confirmPassword': 'Confirm password',
+      'security:passwordsDoNotMatch': 'Passwords do not match',
+      'security:requireDevicePairing': 'Require Device Pairing',
+    })[key] ?? key,
   toast: {
     success: vi.fn(),
     error: vi.fn(),
@@ -17,6 +34,10 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 vi.mock('sonner', () => ({ toast: hoisted.toast }))
+
+vi.mock('@/i18n/react-i18next-compat', () => ({
+  useTranslation: () => ({ t: hoisted.translate }),
+}))
 
 import { SecurityConfigDialog } from '../SecurityConfigDialog'
 

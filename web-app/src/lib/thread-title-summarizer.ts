@@ -73,7 +73,11 @@ export function cleanTitle(raw: string): string | null {
 
   if (!text || text.length < 2) return null
 
-  return text
+  // CJK 标题按字符限制，其他标题按单词限制
+  if (/\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}|\p{Script=Hangul}/u.test(text)) {
+    return Array.from(text).slice(0, MAX_TITLE_CHARS).join('')
+  }
+  return text.split(/\s+/).slice(0, MAX_TITLE_WORDS).join(' ')
 }
 
 /**
@@ -96,10 +100,23 @@ export async function generateThreadTitle(
     const provider = getProviderByName(selectedProvider)
     if (!provider) return null
 
-    const params: Record<string, unknown> =
-      selectedProvider === 'llamacpp'
-        ? { chat_template_kwargs: { enable_thinking: false } }
-        : {}
+    console.log('[ThreadTitle] Creating model:', selectedModel.id, 'provider:', selectedProvider)
+    // Pin to the reserved background slot (RESERVED_BACKGROUND_SLOTS in
+    // preset.ts) — one index past the user-visible "Parallel Sequences"
+    // count — so this call can never evict a chat request's KV cache.
+    // "Parallel Sequences" = 0 means auto (llama.cpp picks its own slot
+    // count); we can't safely reserve a slot in that case, so skip pinning.
+    const params: Record<string, unknown> = {}
+    if (selectedProvider === 'llamacpp') {
+      params.chat_template_kwargs = { enable_thinking: false }
+      const userParallel = Number(
+        provider.settings?.find((s) => s.key === 'parallel')?.controller_props
+          ?.value ?? 1
+      )
+      if (Number.isFinite(userParallel) && userParallel > 0) {
+        params.id_slot = userParallel
+      }
+    }
     const model = await ModelFactory.createModel(
       selectedModel.id,
       provider,

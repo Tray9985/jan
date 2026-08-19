@@ -18,5 +18,26 @@
   "imagesAlreadyAttached": "部分图片已添加",
   "audioAlreadyAttached": "部分音频文件已添加",
   "readAudioFailed": "读取音频文件失败",
-  "readFileFailed": "读取文件失败"
+  "readFileFailed": "读取文件失败",
+  "done": "Done",
+  "embeddings": {
+    "title": "正在准備文档",
+    "description": "正在為附加檔案建立索引，以便搜尋和引用。大型文档可能需要一些時間。"
+  },
+  "actions": {
+    "regenerate": "重新生成回復",
+    "continue": "繼續生成"
+  },
+  "webSources": "{{count}} 個来源",
+  "reasoning": {
+    "label": "推理中...",
+    "thinking": "思考中",
+    "usingTool": "正在使用 {{tool}}...",
+    "showFullTimeline": "顯示完整時間線",
+    "showCurrentStep": "僅顯示目前步骤",
+    "thoughtForAWhile": "思考了几秒",
+    "thoughtFor": "思考了 {{duration}}",
+    "workedForAWhile": "處理了几秒",
+    "workedFor": "處理了 {{duration}}"
+  }
 }

@@ -80,7 +80,9 @@
     "shiftEnter": "Shift + Enter",
     "navigation": "导航",
     "goToSettings": "转到设置",
-    "goToSettingsDesc": "打开设置。"
+    "goToSettingsDesc": "打开设置。",
+    "switchAssistant": "切换助手",
+    "switchAssistantDesc": "在聊天中切换到下一个助手。"
   },
   "interface": {
     "title": "外观",
@@ -125,7 +127,13 @@
     "threadScrollFlowTitle": "自动滚动",
     "threadScrollFlowHint": "新消息到达时自动滚动到底部。",
     "threadScrollStickyTitle": "固定位置",
-    "threadScrollStickyHint": "点击跳到底部，不自动跟随新消息。"
+    "threadScrollStickyHint": "点击跳到底部，不自动跟随新消息。",
+    "coloredUserBubble": "为用户消息气泡着色",
+    "coloredUserBubbleDesc": "使用强调色作为您的消息背景。关闭后，用户消息会与助手消息一样，在中性背景上显示普通文本。",
+    "renderHtmlArtifacts": "渲染 HTML 和 SVG 产物",
+    "renderHtmlArtifactsDesc": "为 HTML 和 SVG 代码块添加预览标签。HTML 会在沙盒框架中运行模型生成的页面，可执行页面自身脚本，但不能访问 Jan、您的文件或网络；SVG 以禁用脚本的静态方式渲染。默认关闭。",
+    "autoGenerateTitle": "自动生成聊天标题",
+    "autoGenerateTitleDesc": "自动将新对话总结为聊天标题。关闭后会保留默认标题，直到您手动重命名。"
   },
   "hardware": {
     "os": "操作系统",
@@ -283,7 +291,9 @@
     "creditsDesc1": "Jan 由 Menlo 团队用 ❤️ 构建。",
     "creditsDesc2": "特别感谢我们的开源依赖项——尤其是 llama.cpp 和 Tauri——以及我们出色的 AI 社区。",
     "huggingfaceToken": "HuggingFace 令牌",
-    "huggingfaceTokenDesc": "您用于访问模型的 HuggingFace API 令牌。"
+    "huggingfaceTokenDesc": "您用于访问模型的 HuggingFace API 令牌。",
+    "clearWebData": "清除界面缓存数据",
+    "clearWebDataDesc": "移除应用窗口保存的本地缓存和界面偏好设置，界面将恢复默认状态。"
   },
   "extensions": {
     "title": "扩展"
@@ -299,9 +309,9 @@
     }
   },
   "attemptingStartPort": "正在尝试在端口 {{port}} 上启动服务...",
-  "portOccupied": "端口被占用",
+  "portOccupied": "端口已被占用",
   "portOccupiedDesc": "端口 {{port}} 已被使用。请选择其他端口。",
-  "invalidModelPath": "模型路径无效",
+  "invalidModelPath": "模型路径无效或无法访问",
   "failedStartModel": "启动模型失败",
   "failedStartServer": "启动服务失败",
   "backendUpdater": {
@@ -360,8 +370,6 @@
   "envVarsUpdated": "环境变量已更新",
   "environmentVariables": "环境变量",
   "failedClearEnvFile": "清除环境文件失败",
-  "failedStartModel": "启动模型失败",
-  "failedStartServer": "启动服务失败",
   "hfTokenInvalid": "令牌无效",
   "hfTokenInvalidDesc": "无法验证该令牌，请检查是否正确。",
   "hfTokenRequired": "需要令牌",
@@ -373,13 +381,11 @@
   "hfTokenValidationTimeoutDesc": "验证请求超时，请稍后重试。",
   "install": "安装",
   "installing": "安装中…",
-  "invalidModelPath": "模型路径无效或无法访问",
   "janCli": "Jan CLI",
   "key": "键",
   "largeModel": "大型模型",
   "mediumModel": "中型模型",
   "smallModel": "小型模型",
-  "portOccupied": "端口已被占用",
   "preparingClaudeCode": "加载模型中…",
   "saveAndEnable": "保存并启用",
   "searchModels": "搜索模型…",
@@ -392,5 +398,25 @@
   "useJanCode": "使用 Jan Code 进行复杂推理任务。请选择支持 Reasoning 的模型。",
   "value": "值",
   "verify": "验证",
-  "claudeCodeCleared": "Claude Code 设置已清除"
+  "claudeCodeCleared": "Claude Code 设置已清除",
+  "webSearch": {
+    "title": "网页搜索",
+    "description": "允许模型使用 Jan 的内置工具搜索和读取网页。",
+    "enable": "启用网页搜索",
+    "enableDesc": "向支持工具调用的模型提供 web_search 和 web_fetch 工具。无需 API Key 即可使用。",
+    "provider": "搜索 Provider",
+    "providerDesc": "选择响应 web_search 和 web_fetch 的后端。",
+    "apiKey": "{{provider}} API Key",
+    "apiKeyOptional": "可选。提供 {{provider}} API Key 可获得更高限额和结构化结果；留空则使用免费的无 Key 端点。",
+    "apiKeyRequired": "必填。{{provider}} 需要 API Key 才能返回结果。",
+    "apiKeyPlaceholder": "输入 {{provider}} API Key",
+    "endpoint": "{{provider}} 实例 URL",
+    "endpointDesc": "必填。启用了 JSON API 的 {{provider}} 实例基础 URL。",
+    "endpointPlaceholder": "https://searx.example.com"
+  },
+  "installBackendFromFile": "从文件安装后端",
+  "installingBackend": "正在安装后端...",
+  "installCudaRuntime": "安装 CUDA 运行时",
+  "installingCudaRuntime": "正在安装 CUDA 运行时...",
+  "cudaRuntimeInstalled": "CUDA 运行时已安装"
 }

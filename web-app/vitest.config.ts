@@ -27,6 +27,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@janhq/assistant-extension': path.resolve(__dirname, '../extensions/assistant-extension/dist/index.js'),
+      '@janhq/conversational-extension': path.resolve(__dirname, '../extensions/conversational-extension/dist/index.js'),
+      '@janhq/download-extension': path.resolve(__dirname, '../extensions/download-extension/dist/index.js'),
+      '@janhq/llamacpp-extension': path.resolve(__dirname, '../extensions/llamacpp-extension/dist/index.js'),
+      '@janhq/mlx-extension': path.resolve(__dirname, '../extensions/mlx-extension/dist/index.js'),
+      '@janhq/rag-extension': path.resolve(__dirname, '../extensions/rag-extension/dist/index.js'),
+      '@janhq/vector-db-extension': path.resolve(__dirname, '../extensions/vector-db-extension/dist/index.js'),
     },
   },
   define: {
@@ -39,6 +46,7 @@ export default defineConfig({
     IS_ANDROID: JSON.stringify(false),
     PLATFORM: JSON.stringify('web'),
     VERSION: JSON.stringify('test'),
+    BUILD_TIME: JSON.stringify('2026-01-01 00:00:00'),
     POSTHOG_KEY: JSON.stringify(''),
     POSTHOG_HOST: JSON.stringify(''),
     AUTO_UPDATER_DISABLED: JSON.stringify('false'),

@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
+const translate = vi.hoisted(() => (key: string) =>
+  key === 'mcp-servers:enterUrl' ? 'Enter URL' : key
+)
+
 vi.mock('@/i18n/react-i18next-compat', () => ({
-  useTranslation: () => ({
-    t: (k: string, vars?: Record<string, unknown>) =>
-      vars ? `${k}:${JSON.stringify(vars)}` : k,
-  }),
+  useTranslation: () => ({ t: translate }),
 }))
 
 // Replace the code editor with a textarea.
@@ -155,9 +156,7 @@ describe('AddEditMCPServer', () => {
   it('shows JSON error when JSON mode payload is not an object', () => {
     const props = baseProps()
     render(<AddEditMCPServer {...props} />)
-    // Toggle JSON mode — title="Add server by JSON"
-    const toggle = document.querySelector('[title="Add server by JSON"]')!
-    fireEvent.click(toggle)
+    fireEvent.click(screen.getByTitle('mcp-servers:addServerByJson'))
     const editor = screen.getByTestId('code-editor') as HTMLTextAreaElement
     fireEvent.change(editor, { target: { value: '"not-an-object"' } })
     fireEvent.click(screen.getByText('mcp-servers:save'))
@@ -170,7 +169,7 @@ describe('AddEditMCPServer', () => {
   it('shows JSON error when payload looks like bare server config (has command)', () => {
     const props = baseProps()
     render(<AddEditMCPServer {...props} />)
-    fireEvent.click(document.querySelector('[title="Add server by JSON"]')!)
+    fireEvent.click(screen.getByTitle('mcp-servers:addServerByJson'))
     fireEvent.change(screen.getByTestId('code-editor'), {
       target: { value: JSON.stringify({ command: 'node' }) },
     })
@@ -183,7 +182,7 @@ describe('AddEditMCPServer', () => {
   it('saves each server entry from valid JSON payload', () => {
     const props = baseProps()
     render(<AddEditMCPServer {...props} />)
-    fireEvent.click(document.querySelector('[title="Add server by JSON"]')!)
+    fireEvent.click(screen.getByTitle('mcp-servers:addServerByJson'))
     const payload = {
       s1: { command: 'c1', args: [], type: 'stdio' },
       s2: { command: 'c2', args: [], type: 'stdio' },
@@ -201,7 +200,7 @@ describe('AddEditMCPServer', () => {
   it('rejects JSON where a server declares an invalid transport type', () => {
     const props = baseProps()
     render(<AddEditMCPServer {...props} />)
-    fireEvent.click(document.querySelector('[title="Add server by JSON"]')!)
+    fireEvent.click(screen.getByTitle('mcp-servers:addServerByJson'))
     fireEvent.change(screen.getByTestId('code-editor'), {
       target: {
         value: JSON.stringify({ s1: { command: 'c', type: 'nope' } }),

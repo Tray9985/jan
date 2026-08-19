@@ -198,23 +198,25 @@ function LocalAPIServerContent() {
 
           // Port-related errors (highest priority)
           if (errorMsg.includes('Address already in use')) {
-            toast.error(t('settings:portOccupied'), {
-              description: t('settings:portOccupiedDesc', { port: serverPort }),
+            toast.error(t('model-errors:serverPortOccupied'), {
+              description: t('model-errors:serverPortOccupiedDescription', {
+                port: serverPort,
+              }),
             })
           }
           // Model-related errors
           else if (errorMsg.includes('Invalid or inaccessible model path')) {
-            toast.error(t('settings:invalidModelPath'), {
+            toast.error(t('model-errors:serverInvalidModelPath'), {
               description: errorMsg,
             })
           } else if (errorMsg.includes('model')) {
-            toast.error(t('settings:failedStartModel'), {
+            toast.error(t('model-errors:serverStartModelFailed'), {
               description: errorMsg,
             })
           }
           // Generic server errors
           else {
-            toast.error(t('settings:failedStartServer'), {
+            toast.error(t('model-errors:serverStartFailed'), {
               description: errorMsg,
             })
           }

@@ -329,7 +329,9 @@ describe('General Settings Route', () => {
       render(<Component />)
     })
 
-    expect(screen.getByText('v1.0.0')).toBeInTheDocument()
+    expect(
+      screen.getByText('v1.0.0 (2026-01-01 00:00:00)')
+    ).toBeInTheDocument()
   })
 
   // TODO: This test is currently commented out due to missing implementation

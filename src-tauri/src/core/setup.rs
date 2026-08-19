@@ -1,12 +1,4 @@
-use flate2::read::GzDecoder;
-use std::{
-    fs::{self, File},
-    io::Read,
-    path::PathBuf,
-    sync::Arc,
-    time::Duration,
-};
-use tar::Archive;
+use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 use tauri::{App, AppHandle, Emitter, Listener, Manager, Runtime, WindowEvent, Wry};
 
 #[cfg(feature = "desktop")]
@@ -20,139 +12,7 @@ use crate::core::app::commands::get_jan_data_folder_path;
 use crate::core::mcp::constants::DEFAULT_MCP_CONFIG;
 use crate::core::mcp::helpers::add_server_config;
 
-use super::{
-    extensions::commands::get_jan_extensions_path, mcp::helpers::run_mcp_commands, state::AppState,
-};
-
-pub fn install_extensions<R: Runtime>(app: tauri::AppHandle<R>, force: bool) -> Result<(), String> {
-    // Skip extension installation on mobile platforms
-    // Mobile uses pre-bundled extensions loaded via MobileCoreService in the frontend
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        return Ok(());
-    }
-
-    let extensions_path = get_jan_extensions_path(app.clone());
-    let pre_install_path = app
-        .path()
-        .resource_dir()
-        .unwrap()
-        .join("resources")
-        .join("pre-install");
-
-    let mut clean_up = force;
-
-    // Check IS_CLEAN environment variable to optionally skip extension install
-    if std::env::var("IS_CLEAN").is_ok() {
-        clean_up = true;
-    }
-    log::info!("Installing extensions. Clean up: {clean_up}");
-    if !clean_up && extensions_path.exists() {
-        return Ok(());
-    }
-
-    // Attempt to remove extensions folder
-    if extensions_path.exists() {
-        fs::remove_dir_all(&extensions_path).unwrap_or_else(|_| {
-            log::info!("Failed to remove existing extensions folder, it may not exist.");
-        });
-    }
-
-    // Attempt to create it again
-    if !extensions_path.exists() {
-        fs::create_dir_all(&extensions_path).map_err(|e| e.to_string())?;
-    }
-
-    let extensions_json_path = extensions_path.join("extensions.json");
-    let mut extensions_list = if extensions_json_path.exists() {
-        let existing_data =
-            fs::read_to_string(&extensions_json_path).unwrap_or_else(|_| "[]".to_string());
-        serde_json::from_str::<Vec<serde_json::Value>>(&existing_data).unwrap_or_else(|_| vec![])
-    } else {
-        vec![]
-    };
-
-    for entry in fs::read_dir(&pre_install_path).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let path = entry.path();
-
-        if path.extension().is_some_and(|ext| ext == "tgz") {
-            let tar_gz = File::open(&path).map_err(|e| e.to_string())?;
-            let gz_decoder = GzDecoder::new(tar_gz);
-            let mut archive = Archive::new(gz_decoder);
-
-            let mut extension_name = None;
-            let mut extension_manifest = None;
-            extract_extension_manifest(&mut archive)
-                .map_err(|e| e.to_string())
-                .and_then(|manifest| match manifest {
-                    Some(manifest) => {
-                        extension_name = manifest["name"].as_str().map(|s| s.to_string());
-                        extension_manifest = Some(manifest);
-                        Ok(())
-                    }
-                    None => Err("Manifest is None".to_string()),
-                })?;
-
-            let extension_name = extension_name.ok_or("package.json not found in archive")?;
-            let extension_dir = extensions_path.join(extension_name.clone());
-            fs::create_dir_all(&extension_dir).map_err(|e| e.to_string())?;
-
-            let tar_gz = File::open(&path).map_err(|e| e.to_string())?;
-            let gz_decoder = GzDecoder::new(tar_gz);
-            let mut archive = Archive::new(gz_decoder);
-            for entry in archive.entries().map_err(|e| e.to_string())? {
-                let mut entry = entry.map_err(|e| e.to_string())?;
-                let file_path = entry.path().map_err(|e| e.to_string())?;
-                let components: Vec<_> = file_path.components().collect();
-                if components.len() > 1 {
-                    let relative_path: PathBuf = components[1..].iter().collect();
-                    let target_path = extension_dir.join(relative_path);
-                    if let Some(parent) = target_path.parent() {
-                        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-                    }
-                    let _result = entry.unpack(&target_path).map_err(|e| e.to_string())?;
-                }
-            }
-
-            let main_entry = extension_manifest
-                .as_ref()
-                .and_then(|manifest| manifest["main"].as_str())
-                .unwrap_or("index.js");
-            let url = extension_dir.join(main_entry).to_string_lossy().to_string();
-
-            let new_extension = serde_json::json!({
-                "url": url,
-                "name": extension_name.clone(),
-                "origin": extension_dir.to_string_lossy(),
-                "active": true,
-                "description": extension_manifest
-                    .as_ref()
-                    .and_then(|manifest| manifest["description"].as_str())
-                    .unwrap_or(""),
-                "version": extension_manifest
-                    .as_ref()
-                    .and_then(|manifest| manifest["version"].as_str())
-                    .unwrap_or(""),
-                "productName": extension_manifest
-                    .as_ref()
-                    .and_then(|manifest| manifest["productName"].as_str())
-                    .unwrap_or(""),
-            });
-
-            extensions_list.push(new_extension);
-
-            log::info!("Installed extension to {extension_dir:?}");
-        }
-    }
-    fs::write(
-        &extensions_json_path,
-        serde_json::to_string_pretty(&extensions_list).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
+use super::{mcp::helpers::run_mcp_commands, state::AppState};
 
 // Migrate MCP servers configuration
 pub fn migrate_mcp_servers(
@@ -201,11 +61,17 @@ pub fn migrate_mcp_servers(
     }
     if mcp_version < 3 {
         log::info!("Migrating MCP schema version 3: Updating Exa to streamable HTTP");
-        if let Err(e) = migrate_exa_to_http(app_handle) {
+        if let Err(e) = migrate_exa_to_http(app_handle.clone()) {
             log::error!("Failed to migrate Exa to HTTP: {e}");
         }
     }
-    store.set("mcp_version", 3);
+    if mcp_version < 4 {
+        log::info!("Migrating MCP schema version 4: Removing default Exa MCP (native web search cutover)");
+        if let Err(e) = remove_exa_server(app_handle) {
+            log::error!("Failed to remove Exa MCP server: {e}");
+        }
+    }
+    store.set("mcp_version", 4);
     store.save().expect("Failed to save store");
     Ok(())
 }
@@ -243,34 +109,48 @@ fn migrate_exa_to_http(app_handle: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-pub fn extract_extension_manifest<R: Read>(
-    archive: &mut Archive<R>,
-) -> Result<Option<serde_json::Value>, String> {
-    let entry = archive
-        .entries()
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok()) // Ignore errors in individual entries
-        .find(|entry| {
-            if let Ok(file_path) = entry.path() {
-                let path_str = file_path.to_string_lossy();
-                path_str == "package/package.json" || path_str == "package.json"
-            } else {
-                false
-            }
-        });
-
-    if let Some(mut entry) = entry {
-        let mut content = String::new();
-        entry
-            .read_to_string(&mut content)
-            .map_err(|e| e.to_string())?;
-
-        let package_json: serde_json::Value =
-            serde_json::from_str(&content).map_err(|e| e.to_string())?;
-        return Ok(Some(package_json));
+/// One-time cutover to native web search: drop the default Exa MCP server so the
+/// built-in web_search/web_fetch tools own web search. Only removes the entry if
+/// it is still the inactive default (hosted HTTP endpoint, no API key); a user who
+/// activated it or supplied their own key keeps their configuration.
+fn remove_exa_server(app_handle: tauri::AppHandle) -> Result<(), String> {
+    let config_path = get_jan_data_folder_path(app_handle).join("mcp_config.json");
+    if !config_path.exists() {
+        return Ok(());
     }
+    let config_str =
+        fs::read_to_string(&config_path).map_err(|e| format!("Failed to read MCP config: {e}"))?;
+    let mut config: serde_json::Value = serde_json::from_str(&config_str)
+        .map_err(|e| format!("Failed to parse MCP config: {e}"))?;
 
-    Ok(None)
+    let Some(servers) = config.get_mut("mcpServers").and_then(|s| s.as_object_mut()) else {
+        return Ok(());
+    };
+
+    let is_default_exa = servers
+        .get("exa")
+        .and_then(|exa| exa.as_object())
+        .map(|exa| {
+            let inactive = exa.get("active").and_then(|v| v.as_bool()) != Some(true);
+            let no_key = exa
+                .get("env")
+                .and_then(|env| env.as_object())
+                .map(|env| env.is_empty())
+                .unwrap_or(true);
+            inactive && no_key
+        })
+        .unwrap_or(false);
+
+    if is_default_exa {
+        servers.remove("exa");
+        fs::write(
+            &config_path,
+            serde_json::to_string_pretty(&config)
+                .map_err(|e| format!("Failed to serialize MCP config: {e}"))?,
+        )
+        .map_err(|e| format!("Failed to write MCP config: {e}"))?;
+    }
+    Ok(())
 }
 
 /// Install/update the bundled `jan` CLI binary.
@@ -407,54 +287,6 @@ pub fn setup_tray(app: &App) -> tauri::Result<TrayIcon> {
         .build(app)
 }
 
-/// Shrink tao's Wayland CSD titlebar (~46px → ~24px) and clear its hardcoded
-/// `decoration_layout` so buttons follow GNOME. Do NOT `set_titlebar` here —
-/// that replaces tao's drag-enabled HeaderBar and breaks drag/double-click.
-#[cfg(target_os = "linux")]
-pub fn shrink_gtk_headerbar<R: Runtime>(app: &App<R>) {
-    use gtk::prelude::*;
-
-    let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
-    let is_csd_desktop = desktop
-        .split(':')
-        .any(|d| matches!(d, "GNOME" | "GNOME-Classic" | "Unity" | "Pantheon"));
-    if !is_csd_desktop {
-        log::info!(
-            "shrink_gtk_headerbar: skipping on XDG_CURRENT_DESKTOP={desktop:?} (not CSD-only)"
-        );
-        return;
-    }
-
-    let css = gtk::CssProvider::new();
-    let style = b"headerbar { min-height: 24px; padding: 0 4px; } \
-                  headerbar button { min-height: 20px; min-width: 20px; padding: 0 4px; } \
-                  headerbar .title { font-size: 0.9em; }";
-    if let Err(e) = css.load_from_data(style) {
-        log::warn!("shrink_gtk_headerbar: css load failed: {e}");
-    } else if let Some(screen) = gtk::gdk::Screen::default() {
-        gtk::StyleContext::add_provider_for_screen(
-            &screen,
-            &css,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-        );
-    }
-
-    // `None` layout falls back to gtk-decoration-layout, synced from GNOME.
-    let header = app
-        .get_webview_window("main")
-        .and_then(|w| w.gtk_window().ok())
-        .and_then(|gw| gw.titlebar())
-        .and_then(|tb| tb.downcast::<gtk::EventBox>().ok())
-        .and_then(|eb| eb.child())
-        .and_then(|c| c.downcast::<gtk::HeaderBar>().ok());
-    match header {
-        Some(h) => h.set_decoration_layout(None::<&str>),
-        None => {
-            log::warn!("shrink_gtk_headerbar: titlebar not the expected EventBox>HeaderBar shape")
-        }
-    }
-}
-
 pub fn setup_theme_listener<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
     // Setup GTK window theme listener for main window
     if let Some(window) = app.get_webview_window("main") {
@@ -510,6 +342,121 @@ async fn read_xdg_portal_color_scheme() -> Result<Option<&'static str>, Box<dyn 
     Ok(match color_scheme {
         1 => Some("dark"),
         _ => Some("light"),
+    })
+}
+
+/// Window-control placement split by side. Values are `"minimize"`,
+/// `"maximize"`, `"close"`; the borderless frontend renders its own buttons in
+/// this order so they match the desktop's configured layout.
+#[derive(serde::Serialize)]
+pub struct TitlebarLayout {
+    pub left: Vec<String>,
+    pub right: Vec<String>,
+}
+
+impl Default for TitlebarLayout {
+    fn default() -> Self {
+        TitlebarLayout {
+            left: vec![],
+            right: vec![
+                "minimize".to_string(),
+                "maximize".to_string(),
+                "close".to_string(),
+            ],
+        }
+    }
+}
+
+/// Read the desktop's window-button layout so the borderless titlebar can place
+/// min/max/close on the side the user configured (KDE `kwinrc`, GNOME gsettings).
+/// Falls back to all-on-the-right on non-Linux or when the config is unreadable.
+#[tauri::command]
+pub fn get_titlebar_layout() -> TitlebarLayout {
+    #[cfg(target_os = "linux")]
+    {
+        let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
+        let is_kde = desktop.split(':').any(|d| d.eq_ignore_ascii_case("KDE"));
+        let layout = if is_kde {
+            read_kde_button_layout()
+        } else {
+            read_gnome_button_layout()
+        };
+        if let Some(layout) = layout {
+            return layout;
+        }
+    }
+    TitlebarLayout::default()
+}
+
+/// Parse `~/.config/kwinrc` `[org.kde.kdecoration2]` button codes
+/// (`I`=minimize, `A`=maximize, `X`=close; others ignored). Defaults match
+/// KDE's own (`MS` left / `IAX` right) when the keys are absent.
+#[cfg(target_os = "linux")]
+fn read_kde_button_layout() -> Option<TitlebarLayout> {
+    let home = std::env::var("HOME").ok()?;
+    let content =
+        fs::read_to_string(PathBuf::from(home).join(".config/kwinrc")).unwrap_or_default();
+
+    let mut left = "MS".to_string();
+    let mut right = "IAX".to_string();
+    let mut in_section = false;
+    for line in content.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            in_section = line == "[org.kde.kdecoration2]";
+        } else if in_section {
+            if let Some(v) = line.strip_prefix("ButtonsOnLeft=") {
+                left = v.trim().to_string();
+            } else if let Some(v) = line.strip_prefix("ButtonsOnRight=") {
+                right = v.trim().to_string();
+            }
+        }
+    }
+
+    let codes = |s: &str| -> Vec<String> {
+        s.chars()
+            .filter_map(|c| match c {
+                'I' => Some("minimize".to_string()),
+                'A' => Some("maximize".to_string()),
+                'X' => Some("close".to_string()),
+                _ => None,
+            })
+            .collect()
+    };
+    Some(TitlebarLayout {
+        left: codes(&left),
+        right: codes(&right),
+    })
+}
+
+/// Read GNOME's `button-layout` (`"appmenu:minimize,maximize,close"`); the side
+/// before `:` is the left cluster. Unknown tokens (appmenu/icon/spacer) ignored.
+#[cfg(target_os = "linux")]
+fn read_gnome_button_layout() -> Option<TitlebarLayout> {
+    let output = std::process::Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.wm.preferences", "button-layout"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let raw = String::from_utf8_lossy(&output.stdout);
+    let raw = raw.trim().trim_matches('\'');
+    let (left, right) = raw.split_once(':').unwrap_or(("", raw));
+
+    let tokens = |s: &str| -> Vec<String> {
+        s.split(',')
+            .filter_map(|t| match t.trim() {
+                "minimize" => Some("minimize".to_string()),
+                "maximize" => Some("maximize".to_string()),
+                "close" => Some("close".to_string()),
+                _ => None,
+            })
+            .collect()
+    };
+    Some(TitlebarLayout {
+        left: tokens(left),
+        right: tokens(right),
     })
 }
 

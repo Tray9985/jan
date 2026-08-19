@@ -9,6 +9,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 
+vi.mock('@/i18n/react-i18next-compat', () => ({
+  useTranslation: () => ({
+    t: (key: string) =>
+      key === 'common:noAssistantsAvailable'
+        ? 'No assistants available'
+        : key,
+  }),
+}))
+
 function AssitantMenuContainer({ children }) {
   return (
     <DropdownMenu>
