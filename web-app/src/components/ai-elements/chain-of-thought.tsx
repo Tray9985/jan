@@ -140,7 +140,8 @@ export const ChainOfThought = memo(
       <ChainOfThoughtContext.Provider value={contextValue}>
         <Collapsible
           className={cn(
-            'not-prose rounded-2xl transition-colors',
+            // 思考和工具卡片与相邻消息保持间距
+            'not-prose my-4 rounded-2xl transition-colors',
             // Card frame only while expanded; collapsed shows a bare summary row.
             'data-[state=open]:border data-[state=open]:border-border/50 data-[state=open]:bg-main-view-fg/2 data-[state=open]:p-3',
             className

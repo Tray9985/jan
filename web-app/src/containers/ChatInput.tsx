@@ -32,7 +32,6 @@ import {
   IconPaperclip,
   IconLoader2,
   IconWorldSearch,
-  IconBrandChrome,
 } from '@tabler/icons-react'
 import { generateId } from 'ai'
 import { useMessageQueue } from '@/stores/message-queue-store'
@@ -97,7 +96,6 @@ import {
   createAudioAttachment,
   createVideoAttachment,
 } from '@/types/attachment'
-import JanBrowserExtensionDialog from '@/containers/dialogs/JanBrowserExtensionDialog'
 import { useJanBrowserExtension } from '@/hooks/useJanBrowserExtension'
 import { useAgentMode } from '@/hooks/useAgentMode'
 import { useWebSearchConfig } from '@/hooks/useWebSearchConfig'
@@ -243,15 +241,8 @@ const ChatInput = memo(function ChatInput({
 
   // Jan Browser Extension hook
   const {
-    hasConfig: hasJanBrowserMCPConfig,
     isActive: janBrowserMCPActive,
-    isLoading: isJanBrowserMCPLoading,
-    dialogOpen: extensionDialogOpen,
-    dialogState: extensionDialogState,
-    toggleBrowser: handleBrowseClick,
     disableDueToIncompatibleModel,
-    handleCancel: handleExtensionDialogCancel,
-    setDialogOpen: setExtensionDialogOpen,
   } = useJanBrowserExtension()
 
   // Check if model supports browser feature (requires both vision and tools)
@@ -2072,48 +2063,6 @@ const ChatInput = memo(function ChatInput({
                     updateCurrentThreadAssistant,
                   }}
                 />
-                {!effectiveAgentMode && hasJanBrowserMCPConfig && modelSupportsBrowser && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        disabled={isJanBrowserMCPLoading}
-                        className={cn(janBrowserMCPActive && 'text-primary')}
-                        onClick={
-                          isJanBrowserMCPLoading
-                            ? undefined
-                            : handleBrowseClick
-                        }
-                      >
-                        {isJanBrowserMCPLoading ? (
-                          <IconLoader2
-                            size={18}
-                            className="text-primary animate-spin"
-                          />
-                        ) : (
-                          <IconBrandChrome
-                            size={18}
-                            className={cn(
-                              'text-muted-foreground',
-                              janBrowserMCPActive && 'text-primary'
-                            )}
-                          />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        {isJanBrowserMCPLoading
-                          ? t('common:starting')
-                          : janBrowserMCPActive
-                            ? t('common:browseActive')
-                            : t('common:browse')}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-
                 {!effectiveAgentMode && selectedModel?.capabilities?.includes('embeddings') && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -2644,12 +2593,6 @@ const ChatInput = memo(function ChatInput({
         </div>
       )}
 
-      <JanBrowserExtensionDialog
-        open={extensionDialogOpen}
-        onOpenChange={setExtensionDialogOpen}
-        state={extensionDialogState}
-        onCancel={handleExtensionDialogCancel}
-      />
     </div>
   )
 })

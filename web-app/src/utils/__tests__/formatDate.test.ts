@@ -82,6 +82,22 @@ describe('formatDate', () => {
     expect(formatted).toMatch(/Jul/i)
   })
 
+  it('uses the requested locale for date and time formatting', () => {
+    const date = '2023-07-04T12:00:00Z'
+    const options = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+    } as const
+
+    expect(formatDate(date, { locale: 'zh-CN' })).toBe(
+      new Date(date).toLocaleString('zh-CN', options)
+    )
+  })
+
   it('supports date-only formatting when includeTime=false', () => {
     const date = '2023-07-04T12:00:00Z'
     const formatted = formatDate(date, { includeTime: false })

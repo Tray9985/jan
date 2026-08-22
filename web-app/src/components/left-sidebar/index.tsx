@@ -1,8 +1,6 @@
-import { DownloadManagement } from '@/containers/DownloadManegement'
 import { NavChats } from './NavChats'
 import { NavMain } from './NavMain'
 import { NavProjects } from './NavProjects'
-import { useLeftPanel } from '@/hooks/useLeftPanel'
 
 import {
   Sidebar,
@@ -15,7 +13,6 @@ import { cn } from '@/lib/utils'
 import { useTitlebarLayout } from '@/stores/titlebar-layout-store'
 
 export function LeftSidebar() {
-  const { open: isLeftPanelOpen } = useLeftPanel()
   // Right-align the header when native controls own the top-left (macOS, or a Linux
   // DE placing buttons left); "Jan" moves into the right cluster except on macOS.
   const leftButtons = useTitlebarLayout((s) => s.layout.left.length)
@@ -31,7 +28,6 @@ export function LeftSidebar() {
               {controlsOnLeft && (
                 <span className="mr-2 font-medium font-studio">Jan</span>
               )}
-              {isLeftPanelOpen && <DownloadManagement />}
               <SidebarTrigger className="text-muted-foreground rounded-full hover:bg-sidebar-foreground/8! -mt-0.5 relative z-50 ml-0.5" />
             </div>
           </div>

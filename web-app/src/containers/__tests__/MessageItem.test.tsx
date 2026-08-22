@@ -5,7 +5,10 @@ import '@testing-library/jest-dom'
 // ---- Module mocks ----------------------------------------------------------
 
 vi.mock('@/i18n/react-i18next-compat', () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
+  useTranslation: () => ({
+    t: (k: string) => k,
+    i18n: { language: 'en' },
+  }),
 }))
 
 const selectedModelRef = vi.hoisted(() => ({ current: { id: 'm1' } as any }))

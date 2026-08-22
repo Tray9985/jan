@@ -182,7 +182,12 @@ const ThreadItem = memo(
             )}
           </Link>
           :
-          <SidebarMenuButton asChild isActive={isSelected}>
+          // Keep the current conversation visible after navigation.
+          <SidebarMenuButton
+            asChild
+            isActive={isSelected}
+            className="data-[active=true]:!bg-sidebar-foreground/8"
+          >
             <Link to="/threads/$threadId" params={{ threadId: thread.id }}>
               {isActive && (
                 <Loader2 className="size-3 shrink-0 animate-spin text-muted-foreground" />

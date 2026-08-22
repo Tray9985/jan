@@ -77,7 +77,7 @@ export const MessageItem = memo(
     versionInfo,
     onSwitchVersion,
   }: MessageItemProps) => {
-    const { t } = useTranslation()
+    const { t, i18n } = useTranslation()
     const selectedModel = useModelProvider((state) => state.selectedModel)
     const coloredUserBubble = useInterfaceSettings((s) => s.coloredUserBubble)
     const metadata = message.metadata as Record<string, unknown> | undefined
@@ -558,7 +558,7 @@ export const MessageItem = memo(
         {message.role === 'user' && !hideActions && (
           <div className="flex items-center justify-end gap-1 text-muted-foreground text-xs opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100">
             <span className="text-muted-foreground">
-              {formatDate(createdAt)}
+              {formatDate(createdAt, { locale: i18n.language })}
             </span>
             {versionNav}
             <CopyButton text={getFullTextContent()} />
@@ -584,7 +584,7 @@ export const MessageItem = memo(
             <div className="flex items-center gap-2 text-muted-foreground text-xs">
               {!isStreaming && (
                 <span className="text-muted-foreground">
-                  {formatDate(createdAt)}
+                  {formatDate(createdAt, { locale: i18n.language })}
                 </span>
               )}
               <div
