@@ -18,8 +18,10 @@
 //! output size so tool results can't blow up the model's context.
 
 use async_trait::async_trait;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 const FETCH_MAX_CHARS: usize = 40_000;
 pub const SEARCH_DEFAULT_COUNT: u32 = 5;
@@ -65,11 +67,13 @@ pub fn create_provider(
     provider: Option<&str>,
     api_key: Option<String>,
     endpoint: Option<String>,
+    headers: Option<HashMap<String, String>>,
 ) -> Result<Box<dyn SearchProvider>, String> {
     match provider.map(|s| s.trim().to_ascii_lowercase()).as_deref() {
         None | Some("") | Some("exa") => Ok(Box::new(ExaProvider::new(api_key)?)),
         Some("tavily") => Ok(Box::new(TavilyProvider::new(api_key)?)),
         Some("searxng") => Ok(Box::new(SearxngProvider::new(endpoint)?)),
+        Some("custom") => Ok(Box::new(CustomProvider::new(endpoint, headers)?)),
         Some(other) => Err(format!("Unknown web search provider '{other}'")),
     }
 }
@@ -83,6 +87,108 @@ fn build_http_client(provider: &str) -> Result<reqwest::Client, String> {
         .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
         .build()
         .map_err(|e| format!("failed to build HTTP client for {provider}: {e}"))
+}
+
+/// Calls a Jan-compatible REST search service.
+pub struct CustomProvider {
+    base_url: String,
+    client: reqwest::Client,
+}
+
+impl CustomProvider {
+    pub fn new(
+        endpoint: Option<String>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<Self, String> {
+        let base_url = endpoint
+            .map(|value| value.trim().trim_end_matches('/').to_string())
+            .filter(|value| !value.is_empty())
+            .ok_or("Custom provider requires a base URL")?;
+        let parsed = reqwest::Url::parse(&base_url)
+            .map_err(|e| format!("Custom provider base URL is invalid: {e}"))?;
+        if !matches!(parsed.scheme(), "http" | "https") {
+            return Err(format!(
+                "Custom provider base URL must be an http(s) URL, got: {base_url}"
+            ));
+        }
+
+        let mut default_headers = HeaderMap::new();
+        for (name, value) in headers.unwrap_or_default() {
+            let name = HeaderName::from_bytes(name.trim().as_bytes())
+                .map_err(|e| format!("Custom provider header name is invalid: {e}"))?;
+            let value = HeaderValue::from_str(value.trim())
+                .map_err(|e| format!("Custom provider header value is invalid: {e}"))?;
+            default_headers.insert(name, value);
+        }
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+            .default_headers(default_headers)
+            .build()
+            .map_err(|e| format!("failed to build HTTP client for custom provider: {e}"))?;
+
+        Ok(Self { base_url, client })
+    }
+
+    async fn response_text(
+        &self,
+        operation: &str,
+        response: reqwest::Response,
+    ) -> Result<String, String> {
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| format!("Custom provider {operation}: failed to read response: {e}"))?;
+        if !status.is_success() {
+            return Err(format!(
+                "Custom provider {operation} failed with HTTP {}: {}",
+                status.as_u16(),
+                text.chars().take(400).collect::<String>()
+            ));
+        }
+        Ok(text)
+    }
+}
+
+#[async_trait]
+impl SearchProvider for CustomProvider {
+    async fn search(&self, query: &str, count: u32) -> Result<Vec<SearchResult>, String> {
+        let response = self
+            .client
+            .post(format!("{}/search", self.base_url))
+            .json(&json!({ "query": query, "count": count }))
+            .send()
+            .await
+            .map_err(|e| format!("Custom provider search request failed: {e}"))?;
+        let text = self.response_text("search", response).await?;
+        let results: Vec<SearchResult> = serde_json::from_str(&text)
+            .map_err(|e| format!("Custom provider search returned invalid JSON: {e}"))?;
+        Ok(results
+            .into_iter()
+            .take(count as usize)
+            .map(|mut result| {
+                result.snippet = clip_chars(&result.snippet, 500);
+                result
+            })
+            .collect())
+    }
+
+    async fn fetch(&self, url: &str) -> Result<FetchedPage, String> {
+        let response = self
+            .client
+            .post(format!("{}/fetch", self.base_url))
+            .json(&json!({ "url": url }))
+            .send()
+            .await
+            .map_err(|e| format!("Custom provider fetch request failed: {e}"))?;
+        let text = self.response_text("fetch", response).await?;
+        let mut page: FetchedPage = serde_json::from_str(&text)
+            .map_err(|e| format!("Custom provider fetch returned invalid JSON: {e}"))?;
+        let (content, truncated) = bound_text(&page.content);
+        page.content = content;
+        page.truncated = page.truncated || truncated;
+        Ok(page)
+    }
 }
 
 /// Which Exa transport the adapter uses.
@@ -724,14 +830,14 @@ mod tests {
 
     #[test]
     fn create_provider_defaults_to_exa() {
-        assert!(create_provider(None, None, None).is_ok());
-        assert!(create_provider(Some(""), None, None).is_ok());
-        assert!(create_provider(Some("Exa"), None, None).is_ok());
+        assert!(create_provider(None, None, None, None).is_ok());
+        assert!(create_provider(Some(""), None, None, None).is_ok());
+        assert!(create_provider(Some("Exa"), None, None, None).is_ok());
     }
 
     #[test]
     fn create_provider_rejects_unknown() {
-        match create_provider(Some("brave"), None, None) {
+        match create_provider(Some("brave"), None, None, None) {
             Ok(_) => panic!("expected unknown provider to error"),
             Err(e) => assert!(e.contains("brave")),
         }
@@ -739,26 +845,30 @@ mod tests {
 
     #[test]
     fn create_provider_tavily_requires_key() {
-        match create_provider(Some("tavily"), None, None) {
+        match create_provider(Some("tavily"), None, None, None) {
             Ok(_) => panic!("expected Tavily to require a key"),
             Err(e) => assert!(e.contains("Tavily")),
         }
-        assert!(create_provider(Some("tavily"), Some("tvly-abc".into()), None).is_ok());
+        assert!(create_provider(Some("tavily"), Some("tvly-abc".into()), None, None).is_ok());
     }
 
     #[test]
     fn create_provider_searxng_requires_valid_url() {
-        match create_provider(Some("searxng"), None, None) {
+        match create_provider(Some("searxng"), None, None, None) {
             Ok(_) => panic!("expected SearXNG to require an instance URL"),
             Err(e) => assert!(e.contains("SearXNG")),
         }
-        match create_provider(Some("searxng"), None, Some("example.com".into())) {
+        match create_provider(Some("searxng"), None, Some("example.com".into()), None) {
             Ok(_) => panic!("expected SearXNG to reject a scheme-less URL"),
             Err(e) => assert!(e.contains("http")),
         }
-        assert!(
-            create_provider(Some("searxng"), None, Some("https://searx.example/".into())).is_ok()
-        );
+        assert!(create_provider(
+            Some("searxng"),
+            None,
+            Some("https://searx.example/".into()),
+            None,
+        )
+        .is_ok());
     }
 
     #[test]
@@ -847,8 +957,11 @@ mod tests {
     fn parse_hosted_result_text_surfaces_errors() {
         let err = "{\"error\":{\"code\":-32000,\"message\":\"boom\"}}";
         assert!(parse_hosted_result_text(err).is_err());
-        let tool_err = "{\"result\":{\"isError\":true,\"content\":[{\"type\":\"text\",\"text\":\"bad\"}]}}";
-        assert!(parse_hosted_result_text(tool_err).unwrap_err().contains("bad"));
+        let tool_err =
+            "{\"result\":{\"isError\":true,\"content\":[{\"type\":\"text\",\"text\":\"bad\"}]}}";
+        assert!(parse_hosted_result_text(tool_err)
+            .unwrap_err()
+            .contains("bad"));
     }
 
     #[test]

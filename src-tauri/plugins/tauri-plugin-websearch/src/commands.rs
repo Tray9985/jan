@@ -1,5 +1,6 @@
 use crate::provider::{clamp_count, create_provider, FetchedPage, SearchResult};
 use serde::Serialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, thiserror::Error)]
 #[error("WebSearchError: {message}")]
@@ -31,12 +32,13 @@ pub async fn web_search(
     provider: Option<String>,
     api_key: Option<String>,
     endpoint: Option<String>,
+    headers: Option<HashMap<String, String>>,
 ) -> Result<Vec<SearchResult>, WebSearchError> {
     let query = query.trim();
     if query.is_empty() {
         return Err(WebSearchError::new("web_search 'query' must not be empty."));
     }
-    let backend = create_provider(provider.as_deref(), api_key, endpoint)?;
+    let backend = create_provider(provider.as_deref(), api_key, endpoint, headers)?;
     let results = backend.search(query, clamp_count(count)).await?;
     Ok(results)
 }
@@ -48,6 +50,7 @@ pub async fn web_fetch(
     provider: Option<String>,
     api_key: Option<String>,
     endpoint: Option<String>,
+    headers: Option<HashMap<String, String>>,
 ) -> Result<FetchedPage, WebSearchError> {
     let url = url.trim();
     if url.is_empty() {
@@ -58,7 +61,7 @@ pub async fn web_fetch(
             "web_fetch 'url' must be an http(s) URL, got: {url}"
         )));
     }
-    let backend = create_provider(provider.as_deref(), api_key, endpoint)?;
+    let backend = create_provider(provider.as_deref(), api_key, endpoint, headers)?;
     let page = backend.fetch(url).await?;
     Ok(page)
 }

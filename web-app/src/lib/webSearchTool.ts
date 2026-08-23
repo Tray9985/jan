@@ -49,14 +49,38 @@ export async function executeWebTool(
   toolName: string,
   input: WebToolInput
 ): Promise<WebToolResult> {
-  const { apiKeys, endpoints, searchProvider } = useWebSearchConfig.getState()
+  const {
+    webSearchEnabled,
+    apiKeys,
+    endpoints,
+    searchProvider,
+    customProviders,
+  } = useWebSearchConfig.getState()
+  if (!webSearchEnabled) {
+    return { error: 'Web search is disabled' }
+  }
+  const customProvider = customProviders.find(
+    (provider) => provider.id === searchProvider
+  )
+  if (searchProvider.startsWith('custom-') && !customProvider) {
+    return { error: `Custom web search provider '${searchProvider}' was not found` }
+  }
   const apiKey = apiKeys[searchProvider] || undefined
-  const endpoint = endpoints[searchProvider] || undefined
+  const endpoint = customProvider?.baseUrl ?? endpoints[searchProvider] ?? undefined
+  const provider = customProvider ? 'custom' : searchProvider
+  const headers = customProvider?.headers
   try {
     if (toolName === 'web_search') {
       const query = typeof input?.query === 'string' ? input.query : ''
       const count = typeof input?.count === 'number' ? input.count : undefined
-      const results = await webSearch(query, count, apiKey, searchProvider, endpoint)
+      const results = await webSearch(
+        query,
+        count,
+        apiKey,
+        provider,
+        endpoint,
+        headers
+      )
       return {
         content: {
           kind: 'web',
@@ -73,7 +97,13 @@ export async function executeWebTool(
     }
     if (toolName === 'web_fetch') {
       const url = typeof input?.url === 'string' ? input.url : ''
-      const page = await webFetch(url, apiKey, searchProvider, endpoint)
+      const page = await webFetch(
+        url,
+        apiKey,
+        provider,
+        endpoint,
+        headers
+      )
       const text = `Title: ${page.title}\nURL: ${page.url}\n\n${page.content}${
         page.truncated ? '\n\n[content truncated]' : ''
       }`

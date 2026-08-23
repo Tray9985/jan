@@ -411,7 +411,7 @@ function General() {
                   title={t('settings:janCli')}
                   description={
                     cliInstalled && cliPath
-                      ? t('settings:cliInstalledPath', { path: cliPath })
+                      ? t('settings:cliInstalled', { path: cliPath })
                       : t('settings:cliDescription')
                   }
                   actions={

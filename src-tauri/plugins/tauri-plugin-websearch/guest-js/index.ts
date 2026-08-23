@@ -8,7 +8,8 @@ export async function webSearch(
   count?: number,
   apiKey?: string,
   provider?: string,
-  endpoint?: string
+  endpoint?: string,
+  headers?: Record<string, string>
 ): Promise<SearchResult[]> {
   return await invoke('plugin:websearch|web_search', {
     query,
@@ -16,6 +17,7 @@ export async function webSearch(
     provider,
     apiKey,
     endpoint,
+    headers,
   })
 }
 
@@ -23,12 +25,14 @@ export async function webFetch(
   url: string,
   apiKey?: string,
   provider?: string,
-  endpoint?: string
+  endpoint?: string,
+  headers?: Record<string, string>
 ): Promise<FetchedPage> {
   return await invoke('plugin:websearch|web_fetch', {
     url,
     provider,
     apiKey,
     endpoint,
+    headers,
   })
 }

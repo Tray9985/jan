@@ -13,6 +13,13 @@ export type WebSearchProviderMeta = {
   requiresEndpoint?: boolean
 }
 
+export type CustomWebSearchProvider = {
+  id: string
+  name: string
+  baseUrl: string
+  headers: Record<string, string>
+}
+
 export const WEB_SEARCH_PROVIDERS: WebSearchProviderMeta[] = [
   {
     id: 'exa',
@@ -46,15 +53,25 @@ export const providerFavicon = (meta: WebSearchProviderMeta): string =>
 export const getProviderMeta = (id: string): WebSearchProviderMeta =>
   WEB_SEARCH_PROVIDERS.find((p) => p.id === id) ?? WEB_SEARCH_PROVIDERS[0]
 
+export const getWebSearchProviderLabel = (
+  id: string,
+  customProviders: CustomWebSearchProvider[]
+): string =>
+  customProviders.find((provider) => provider.id === id)?.name ??
+  getProviderMeta(id).label
+
 type WebSearchConfigState = {
   webSearchEnabled: boolean
   searchProvider: string
   apiKeys: Record<string, string>
   endpoints: Record<string, string>
+  customProviders: CustomWebSearchProvider[]
   setWebSearchEnabled: (value: boolean) => void
   setSearchProvider: (value: string) => void
   setApiKey: (providerId: string, value: string) => void
   setEndpoint: (providerId: string, value: string) => void
+  addCustomProvider: (provider: CustomWebSearchProvider) => void
+  deleteCustomProvider: (providerId: string) => void
 }
 
 export const useWebSearchConfig = create<WebSearchConfigState>()(
@@ -64,6 +81,7 @@ export const useWebSearchConfig = create<WebSearchConfigState>()(
       searchProvider: DEFAULT_SEARCH_PROVIDER,
       apiKeys: {},
       endpoints: {},
+      customProviders: [],
       setWebSearchEnabled: (webSearchEnabled) => set({ webSearchEnabled }),
       setSearchProvider: (searchProvider) => set({ searchProvider }),
       setApiKey: (providerId, value) => {
@@ -81,6 +99,22 @@ export const useWebSearchConfig = create<WebSearchConfigState>()(
       // Instance URLs are not secrets; they persist in settings.json.
       setEndpoint: (providerId, value) =>
         set({ endpoints: { ...get().endpoints, [providerId]: value } }),
+      // Custom provider configuration is stored with the web search settings.
+      addCustomProvider: (provider) =>
+        set((state) => ({
+          customProviders: [...state.customProviders, provider],
+          searchProvider: provider.id,
+        })),
+      deleteCustomProvider: (providerId) =>
+        set((state) => ({
+          customProviders: state.customProviders.filter(
+            (provider) => provider.id !== providerId
+          ),
+          searchProvider:
+            state.searchProvider === providerId
+              ? DEFAULT_SEARCH_PROVIDER
+              : state.searchProvider,
+        })),
     }),
     {
       name: localStorageKey.settingWebSearch,
@@ -91,6 +125,7 @@ export const useWebSearchConfig = create<WebSearchConfigState>()(
         webSearchEnabled: state.webSearchEnabled,
         searchProvider: state.searchProvider,
         endpoints: state.endpoints,
+        customProviders: state.customProviders,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return

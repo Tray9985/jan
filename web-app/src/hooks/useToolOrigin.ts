@@ -1,6 +1,9 @@
 import { useMemo } from 'react'
 import { useAppState } from '@/hooks/useAppState'
-import { getProviderMeta, useWebSearchConfig } from '@/hooks/useWebSearchConfig'
+import {
+  getWebSearchProviderLabel,
+  useWebSearchConfig,
+} from '@/hooks/useWebSearchConfig'
 import { resolveToolOrigin, type ToolOrigin } from '@/lib/toolOrigin'
 
 /**
@@ -13,8 +16,8 @@ export const useToolOrigin = (toolName: string): ToolOrigin | undefined => {
     (s) => s.tools.find((tool) => tool.name === toolName)?.server
   )
   const isRagTool = useAppState((s) => s.ragToolNames.has(toolName))
-  const webSearchProviderLabel = useWebSearchConfig(
-    (s) => getProviderMeta(s.searchProvider).label
+  const webSearchProviderLabel = useWebSearchConfig((s) =>
+    getWebSearchProviderLabel(s.searchProvider, s.customProviders)
   )
 
   return useMemo(
